@@ -1,20 +1,19 @@
 import 'package:flutter/material.dart';
+import 'screens/quiz_generator_page.dart';
 
 void main() {
-  runApp(const MainApp());
+  runApp(const QuizGeneratorApp());
 }
 
-class MainApp extends StatelessWidget {
-  const MainApp({super.key});
+class QuizGeneratorApp extends StatelessWidget {
+  const QuizGeneratorApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      home: Scaffold(
-        body: Center(
-          child: Text('Hello World!'),
-        ),
-      ),
+    return MaterialApp(
+      title: "Quiz Generator",
+      debugShowCheckedModeBanner: false,
+      home: const QuizGeneratorPage(),
     );
   }
 }
