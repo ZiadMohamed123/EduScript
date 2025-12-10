@@ -8,13 +8,13 @@ import 'screens/auth/login_page.dart';
 import 'screens/auth/signup_page.dart';
 import 'utils/app_theme.dart';
 import 'utils/theme_controller.dart';
-
+import 'screens/quiz_generator_page.dart';
 void main() {
-  runApp(const MainApp());
+  runApp(const QuizGeneratorApp());
 }
 
-class MainApp extends StatelessWidget {
-  const MainApp({super.key});
+class QuizGeneratorApp extends StatelessWidget {
+  const QuizGeneratorApp({super.key});
 
   @override
   Widget build(BuildContext context) {
