@@ -1,4 +1,13 @@
 import 'package:flutter/material.dart';
+import 'screens/splash_screen.dart';
+import 'screens/home_page.dart';
+import 'screens/settings_page.dart';
+import 'screens/documents_list_page.dart';
+import 'screens/chat_page.dart';
+import 'screens/auth/login_page.dart';
+import 'screens/auth/signup_page.dart';
+import 'utils/app_theme.dart';
+import 'utils/theme_controller.dart';
 
 void main() {
   runApp(const MainApp());
@@ -9,12 +18,33 @@ class MainApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      home: Scaffold(
-        body: Center(
-          child: Text('Hello World!'),
-        ),
-      ),
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: ThemeController.instance.themeMode,
+      builder: (context, mode, _) {
+        return MaterialApp(
+          title: 'EduScript',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.light(),
+          darkTheme: AppTheme.dark(),
+          themeMode: mode,
+          initialRoute: '/',
+          routes: {
+            '/': (context) => const SplashScreen(),
+            '/home': (context) => const HomePage(),
+            '/settings': (context) => const SettingsPage(),
+            '/documents': (context) => const DocumentsListPage(),
+            '/chat': (context) {
+              final args = ModalRoute.of(context)?.settings.arguments;
+              if (args is Document) {
+                return ChatPage(document: args);
+              }
+              return const ChatPage();
+            },
+            '/login': (context) => const LoginPage(),
+            '/signup': (context) => const SignUpPage(),
+          },
+        );
+      },
     );
   }
 }
