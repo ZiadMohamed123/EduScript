@@ -1,0 +1,10 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "Backend API for EduScript",
+  "main": "index.js",
+  "author": "",
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}
