@@ -23,9 +23,9 @@ class _SignUpPageState extends State<SignUpPage> {
   }
 
   void _showComingSoon(String action) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$action coming soon!')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('$action coming soon!')));
   }
 
   @override
@@ -33,10 +33,7 @@ class _SignUpPageState extends State<SignUpPage> {
     final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Sign Up'),
-        elevation: 0,
-      ),
+      appBar: AppBar(title: const Text('Sign Up'), elevation: 0),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -47,15 +44,15 @@ class _SignUpPageState extends State<SignUpPage> {
               Text(
                 'Create your account',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
                 'Start scanning notes, summaries, and MCQs.',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                    ),
+                  color: scheme.onSurfaceVariant,
+                ),
               ),
               const SizedBox(height: 32),
 
@@ -95,7 +92,9 @@ class _SignUpPageState extends State<SignUpPage> {
                   labelText: 'Password',
                   prefixIcon: const Icon(Icons.lock_outline),
                   suffixIcon: IconButton(
-                    icon: Icon(_obscure ? Icons.visibility : Icons.visibility_off),
+                    icon: Icon(
+                      _obscure ? Icons.visibility : Icons.visibility_off,
+                    ),
                     onPressed: () {
                       setState(() => _obscure = !_obscure);
                     },
@@ -129,7 +128,8 @@ class _SignUpPageState extends State<SignUpPage> {
               const SizedBox(height: 12),
 
               OutlinedButton(
-                onPressed: () => Navigator.pushReplacementNamed(context, '/login'),
+                onPressed: () =>
+                    Navigator.pushReplacementNamed(context, '/login'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.primary,
                   side: const BorderSide(color: AppColors.primary),
@@ -208,4 +208,3 @@ class _SocialButton extends StatelessWidget {
     );
   }
 }
-
