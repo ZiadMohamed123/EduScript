@@ -109,11 +109,7 @@ class HomePage extends StatelessWidget {
                       title: 'Quizzes',
                       subtitle: 'Practice',
                       onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('MCQ feature coming soon!'),
-                          ),
-                        );
+                        Navigator.pushNamed(context, '/quiz');
                       },
                     ),
                   ),

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
-import 'chat_page.dart';
 
 class Document {
   final String id;
@@ -231,14 +230,8 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
               title: const Text('View Summary'),
               onTap: () {
                 Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ChatPage(
-                      document: document,
-                      initialMessage: 'Generate a summary',
-                    ),
-                  ),
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Summary feature coming soon!')),
                 );
               },
             ),
@@ -247,16 +240,7 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
               title: const Text('Generate MCQ'),
               onTap: () {
                 Navigator.pop(context);
-                Navigator.pushNamed(context, '/chat', arguments: document);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.chat),
-              title: const Text('Chat with AI'),
-              subtitle: const Text('Ask questions about this document'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/chat', arguments: document);
+                Navigator.pushNamed(context, '/quiz');
               },
             ),
             ListTile(
