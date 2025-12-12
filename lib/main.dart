@@ -13,17 +13,17 @@ void main() async {
   try {
     await dotenv.load(fileName: ".env");
     // Verify API key was loaded
-    final apiKey = dotenv.env['OPENAI_API_KEY'];
+    final apiKey = dotenv.env['GEMINI_API_KEY'];
     if (apiKey == null || apiKey.isEmpty) {
-      debugPrint("Warning: OPENAI_API_KEY is not set in .env file");
+      debugPrint("Warning: GEMINI_API_KEY is not set in .env file");
     } else {
-      debugPrint("API key loaded successfully (${apiKey.substring(0, 7)}...)");
+      debugPrint("Gemini API key loaded successfully (${apiKey.substring(0, apiKey.length > 7 ? 7 : apiKey.length)}...)");
     }
   } catch (e) {
     // .env file not found, but app can still run
     // API calls will fail if API key is needed
     debugPrint("Warning: .env file not found or could not be loaded: $e");
-    debugPrint("Please create a .env file in the project root with OPENAI_API_KEY=your_key");
+    debugPrint("Please create a .env file in the project root with GEMINI_API_KEY=your_key");
   }
   runApp(const MainApp());
 }

@@ -9,7 +9,7 @@ import '../models/question_type.dart';
 class QuizApiService {
   String get apiKey {
     try {
-      return dotenv.env['OPENAI_API_KEY'] ?? '';
+      return dotenv.env['GEMINI_API_KEY'] ?? '';
     } catch (e) {
       // dotenv not initialized, return empty string
       return '';
@@ -33,16 +33,19 @@ class QuizApiService {
         'API key is missing or empty!\n\n'
         'Please check:\n'
         '1. Create a .env file in the project root (same folder as pubspec.yaml)\n'
-        '2. Add this line: OPENAI_API_KEY=sk-your-actual-key-here\n'
+        '2. Add this line: GEMINI_API_KEY=your-api-key-here\n'
         '3. Make sure there are NO spaces around the = sign\n'
         '4. Restart the app completely (hot reload won\'t work)\n'
         '5. Run: flutter pub get\n\n'
-        'Get your API key from: https://platform.openai.com/account/api-keys'
+        'Get your API key from: https://aistudio.google.com/app/apikey'
       );
     }
 
-    // Use the correct OpenAI Chat Completions API endpoint
-    final url = Uri.parse("https://api.openai.com/v1/chat/completions");
+    // Use Google Gemini API endpoint
+    final model = _getEnv('GEMINI_MODEL').isEmpty ? 'gemini-2.5-flash' : _getEnv('GEMINI_MODEL');
+    final url = Uri.parse(
+      "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$key"
+    );
 
     final prompt = '''Generate exactly 5 questions from the following notes in **valid JSON array**.
 
@@ -59,32 +62,31 @@ If type is essay or shortAnswer → options must be [].
 Notes:
 $notes
 
-Return ONLY the JSON array, no other text.''';
+Return ONLY the JSON array, no other text. Do not include markdown code blocks or any explanation.''';
 
-    final projectId = _getEnv('OPENAI_PROJECT_ID');
     final headers = <String, String>{
       "Content-Type": "application/json",
-      "Authorization": "Bearer $apiKey",
     };
-    
-    // Only add OpenAI-Project header if project ID is provided
-    if (projectId.isNotEmpty) {
-      headers["OpenAI-Project"] = projectId;
-    }
 
     final response = await http.post(
       url,
       headers: headers,
       body: jsonEncode({
-        "model": "gpt-3.5-turbo", // Using available model from your account
-        "messages": [
+        "contents": [
           {
-            "role": "user",
-            "content": prompt,
+            "parts": [
+              {
+                "text": prompt,
+              }
+            ]
           }
         ],
-        "temperature": 0.7,
-        "response_format": {"type": "json_object"}, // Request JSON response
+        "generationConfig": {
+          "temperature": 0.7,
+          "topK": 40,
+          "topP": 0.95,
+          "maxOutputTokens": 2048,
+        },
       }),
     );
 
@@ -94,48 +96,42 @@ Return ONLY the JSON array, no other text.''';
         final errorData = jsonDecode(response.body);
         if (errorData is Map && errorData.containsKey('error')) {
           final error = errorData['error'];
-          final errorType = error['type'] as String?;
           final errorMessage = error['message'] as String? ?? 'Unknown error';
-          final errorCode = error['code'] as String?;
+          final errorCode = error['code'] as int?;
+          final errorStatus = error['status'] as String?;
           
-          if (errorType == 'insufficient_quota' || errorCode == 'insufficient_quota') {
+          if (errorStatus == 'RESOURCE_EXHAUSTED' || errorCode == 429) {
             throw Exception(
-              'OpenAI API Quota Exceeded\n\n'
+              'Gemini API Quota Exceeded\n\n'
               'Your API key has exceeded its usage quota.\n\n'
               'Troubleshooting steps:\n'
-              '1. Verify the API key belongs to an account with credits:\n'
-              '   https://platform.openai.com/account/api-keys\n\n'
-              '2. Check billing and usage:\n'
-              '   https://platform.openai.com/account/billing\n\n'
-              '3. Ensure payment method is added and verified\n\n'
-              '4. Note: ChatGPT Plus subscription ≠ API credits\n'
-              '   API requires separate billing setup\n\n'
-              '5. If you have credits, try:\n'
-              
-              '   - Waiting a few minutes for billing to update\n'
-              '   - Creating a new API key\n\n'
+              '1. Check your quota and usage:\n'
+              '   https://aistudio.google.com/app/apikey\n\n'
+              '2. Verify your API key is valid\n\n'
+              '3. Wait a few minutes and try again\n\n'
+              '4. Check if you need to enable billing\n\n'
               'API Key used: ${key.substring(0, key.length > 12 ? 12 : key.length)}...\n'
-              'Check this key at: https://platform.openai.com/account/api-keys'
+              'Get a new key at: https://aistudio.google.com/app/apikey'
             );
-          } else if (errorType == 'invalid_api_key') {
+          } else if (errorStatus == 'UNAUTHENTICATED' || errorCode == 401) {
             throw Exception(
               'Invalid API Key\n\n'
-              'Your OpenAI API key is invalid or has been revoked.\n\n'
+              'Your Gemini API key is invalid or has been revoked.\n\n'
               'Get a new key from:\n'
-              'https://platform.openai.com/account/api-keys'
+              'https://aistudio.google.com/app/apikey'
             );
-          } else if (errorType == 'rate_limit_exceeded') {
+          } else if (errorStatus == 'RESOURCE_EXHAUSTED' || errorCode == 429) {
             throw Exception(
               'Rate Limit Exceeded\n\n'
               'Too many requests. Please wait a moment and try again.'
             );
           } else {
-            throw Exception('OpenAI API Error: $errorMessage\nType: $errorType');
+            throw Exception('Gemini API Error: $errorMessage\nStatus: $errorStatus');
           }
         }
       } catch (e) {
         // If it's already our custom exception, rethrow it
-        if (e.toString().contains('OpenAI API')) {
+        if (e.toString().contains('Gemini API')) {
           rethrow;
         }
         // If parsing fails, use raw response
@@ -145,8 +141,8 @@ Return ONLY the JSON array, no other text.''';
 
     final data = jsonDecode(response.body);
 
-    // Chat Completions API returns content in choices[0].message.content
-    final content = data['choices']?[0]?['message']?['content'] as String?;
+    // Gemini API returns content in candidates[0].content.parts[0].text
+    final content = data['candidates']?[0]?['content']?['parts']?[0]?['text'] as String?;
 
     if (content == null || content.isEmpty) {
       throw Exception("No content in API response.");
