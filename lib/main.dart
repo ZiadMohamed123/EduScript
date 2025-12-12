@@ -2,12 +2,29 @@ import 'package:flutter/material.dart';
 import 'screens/splash_screen.dart';
 import 'screens/home_page.dart';
 import 'screens/settings_page.dart';
-  import 'screens/documents_list_page.dart';
-  import 'screens/quiz_generator_page.dart';
+import 'screens/documents_list_page.dart';
+import 'screens/quiz_generator_page.dart';
 import 'utils/app_theme.dart';
 import 'utils/theme_controller.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await dotenv.load(fileName: ".env");
+    // Verify API key was loaded
+    final apiKey = dotenv.env['OPENAI_API_KEY'];
+    if (apiKey == null || apiKey.isEmpty) {
+      debugPrint("Warning: OPENAI_API_KEY is not set in .env file");
+    } else {
+      debugPrint("API key loaded successfully (${apiKey.substring(0, 7)}...)");
+    }
+  } catch (e) {
+    // .env file not found, but app can still run
+    // API calls will fail if API key is needed
+    debugPrint("Warning: .env file not found or could not be loaded: $e");
+    debugPrint("Please create a .env file in the project root with OPENAI_API_KEY=your_key");
+  }
   runApp(const MainApp());
 }
 
