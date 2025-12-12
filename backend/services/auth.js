@@ -1,6 +1,6 @@
-import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { supabase } from "../config/supabase.js";
+import { User } from "../models/User.js";
+import { Settings } from "../models/Settings.js";
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -16,41 +16,17 @@ export const signUp = async (req, res, next) => {
     }
 
     // Check if user already exists
-    const { data: existingUser } = await supabase
-      .from("User")
-      .select("userID")
-      .eq("email", email)
-      .single();
-
-    if (existingUser) {
+    if (await User.doesUserExist(email)) {
       return res.status(409).json({
         message: "User already exists",
       });
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
     // Create user
-    const { data: newUser, error } = await supabase
-      .from("User")
-      .insert({
-        name,
-        email,
-        password: hashedPassword,
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
+    const newUser = await User.create({ email, password, name });
 
     // Create default settings
-    await supabase.from("Settings").insert({
-      userID: newUser.userID,
-      isNotificationOpen: true,
-      isDarkModeOpen: false,
-      Language: "English",
-    });
+    await Settings.create(newUser.userID);
 
     res.status(201).json({
       message: "User created successfully",
@@ -77,22 +53,9 @@ export const logIn = async (req, res, next) => {
     }
 
     // Find user
-    const { data: user, error } = await supabase
-      .from("User")
-      .select("*")
-      .eq("email", email)
-      .single();
-
-    if (error || !user) {
-      return res.status(401).json({
-        message: "Invalid email or password",
-      });
-    }
-
-    // Verify password
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-
-    if (!isPasswordValid) {
+    let user = await User.Login(email, password);
+    
+    if (!user) {
       return res.status(401).json({
         message: "Invalid email or password",
       });

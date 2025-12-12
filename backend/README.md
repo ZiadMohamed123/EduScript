@@ -9,10 +9,10 @@ A Node.js Express backend API for the EduScript mobile application, integrated w
 - **POST /auth/login** - Login user and receive JWT token
 
 ### User Endpoints (Authenticated)
-- **GET /user/profile** - Get user profile information
-- **PUT /user/profile** - Update user profile
-- **DELETE /user/profile** - Delete user account
-- **GET /user/settings** - Get user settings
+- **GET /user** - Get user profile and settings information
+- **GET /user/profile-picture** - Get user's profile picture
+- **PUT /user/update** - Update user profile (with profile picture upload)
+- **DELETE /user/delete** - Delete user account (and associated profile picture)
 - **PUT /user/settings/notification** - Toggle notification settings
 - **PUT /user/settings/darkmode** - Toggle dark mode
 - **PUT /user/settings/language** - Update language preference
@@ -21,8 +21,13 @@ A Node.js Express backend API for the EduScript mobile application, integrated w
 - **POST /document/add** - Add a new document
 - **PUT /document/edit/:documentID** - Edit document metadata
 - **DELETE /document/delete/:documentID** - Delete a document
-- **GET /document/metadata** - Get all documents metadata
+- **GET /document/allDocsMetaData** - Get all documents metadata
 - **GET /document/:documentID** - Get complete document by ID
+
+### Quiz Endpoints (Authenticated)
+- **GET /quiz/:quizID** - Get quiz by ID
+- **PUT /quiz/update/:quizID** - Edit quiz name
+- **DELETE /quiz/delete/:quizID** - Delete quiz
 
 ## Installation
 
@@ -52,6 +57,12 @@ NODE_ENV=development
 
 ## Running the Server
 
+### Development Mode (with auto-reload)
+```bash
+npm run dev
+```
+
+### Production Mode
 ```bash
 npm start
 ```
@@ -66,6 +77,21 @@ Authorization: Bearer <your_jwt_token>
 ```
 
 Tokens are valid for 7 days from the time of issue.
+
+## File Uploads
+
+### Profile Pictures
+- Upload with **PUT /user/update** endpoint (multipart/form-data with `profilePicture` field)
+- Old profile pictures are automatically replaced when updating
+- Profile pictures are deleted when the user account is deleted
+- Retrieved with **GET /user/profile-picture** endpoint
+
+### Documents
+Similar to profile pictures:
+- Upload with **POST /document/add** endpoint
+- Update with **PUT /document/edit/:documentID** endpoint
+- Files are stored in `/uploads/documents/`
+- Automatic cleanup on deletion
 
 ## Error Handling
 
@@ -86,3 +112,19 @@ The API uses:
 - **jsonwebtoken** - JWT token generation and verification
 - **CORS** - Cross-origin resource sharing
 - **dotenv** - Environment variable management
+
+### Architecture
+
+The backend follows a layered architecture:
+
+1. **Models** (`/models`) - Direct database interaction with Supabase
+   - Static methods for CRUD operations
+
+2. **Services** (`/services`) - Business logic
+   - Uses models for database operations
+
+3. **Routes** (`/routes`) - API endpoints
+   - Delegates to services
+
+4. **Middleware** (`/middleware`) - Request processing
+   - authMiddleware for JWT verification

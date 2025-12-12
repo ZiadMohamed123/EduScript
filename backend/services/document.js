@@ -1,36 +1,29 @@
-import { supabase } from '../config/supabase.js';
+import { Document } from "../models/Document.js";
+import path from "path";
+import fs from "fs";
+import { documentsUploadDir } from "../config/multer.js";
 
 export const addDocument = async (req, res, next) => {
   try {
     const userID = req.user.userID;
-    const { name, noOfPages, fileName, extractedText, summary } = req.body;
+    const { name, noOfPages, extractedText, summary } = req.body;
 
     // Validate required fields
-    if (!name || !fileName) {
+    if (!name || !req.file) {
       return res.status(400).json({
-        success: false,
-        message: "Name and fileName are required",
+        message: "Name and file are required",
       });
     }
 
-    const { data: newDocument, error } = await supabase
-      .from("Document")
-      .insert({
-        userID,
-        name,
-        noOfPages: noOfPages || 0,
-        uploadDate: new Date().toISOString(),
-        fileName,
-        extractedText: extractedText || "",
-        Summary: summary || "",
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
+    const newDocument = await Document.create(userID , {
+      name,
+      fileName: req.file.filename,
+      noOfPages,
+      extractedText,
+      summary,
+    });
 
     res.status(201).json({
-      success: true,
       message: "Document added successfully",
       document: newDocument,
     });
@@ -46,40 +39,29 @@ export const updateDocument = async (req, res, next) => {
     const { name, noOfPages, extractedText, summary } = req.body;
 
     // Check if document belongs to user
-    const { data: document, error: checkError } = await supabase
-      .from("Document")
-      .select("documentID")
-      .eq("documentID", documentID)
-      .eq("userID", userID)
-      .single();
-
-    if (checkError || !document) {
+    if (!(await Document.doesDocumentBelongToUser(documentID, userID))) {
       return res.status(404).json({
-        success: false,
         message: "Document not found or access denied",
       });
+    };
+
+    try {
+      const updatedDocument = await Document.update(documentID, req.file, {
+        name,
+        noOfPages,
+        extractedText,
+        summary,
+      });
+
+      return res.json({
+        message: "Document updated successfully",
+        document: updatedDocument,
+      });
+    } catch (error) {
+      return res.status(500).json({
+        message: "Failed to update document",
+      });
     }
-
-    const updateData = {};
-    if (name !== undefined) updateData.name = name;
-    if (noOfPages !== undefined) updateData.noOfPages = noOfPages;
-    if (extractedText !== undefined) updateData.extractedText = extractedText;
-    if (summary !== undefined) updateData.Summary = summary;
-
-    const { data: updatedDocument, error } = await supabase
-      .from("Document")
-      .update(updateData)
-      .eq("documentID", documentID)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    res.json({
-      success: true,
-      message: "Document updated successfully",
-      document: updatedDocument,
-    });
   } catch (error) {
     next(error);
   }
@@ -91,31 +73,24 @@ export const deleteDocument = async (req, res, next) => {
     const { documentID } = req.params;
 
     // Check if document belongs to user
-    const { data: document, error: checkError } = await supabase
-      .from('Document')
-      .select('documentID')
-      .eq('documentID', documentID)
-      .eq('userID', userID)
-      .single();
-
-    if (checkError || !document) {
+    if (!(await Document.doesDocumentBelongToUser(documentID, userID))) {
       return res.status(404).json({
-        success: false,
-        message: 'Document not found or access denied'
+        message: "Document not found or access denied",
+      });
+    };
+
+    try {
+      await Document.delete(documentID);
+      
+      return res.json({
+        message: "Document deleted successfully",
+      });
+    } catch (error) {
+      return res.status(500).json({
+        message: "Failed to delete document",
       });
     }
 
-    const { error } = await supabase
-      .from('Document')
-      .delete()
-      .eq('documentID', documentID);
-
-    if (error) throw error;
-
-    res.json({
-      success: true,
-      message: 'Document deleted successfully'
-    });
   } catch (error) {
     next(error);
   }
@@ -125,18 +100,11 @@ export const getAllDocumentsMetadataByUserID = async (req, res, next) => {
   try {
     const userID = req.user.userID;
 
-    const { data: documents, error } = await supabase
-      .from('Document')
-      .select('documentID, name, noOfPages, uploadDate, fileName, Summary')
-      .eq('userID', userID)
-      .order('uploadDate', { ascending: false });
-
-    if (error) throw error;
+    const documents = await Document.findByUserId(userID);
 
     res.json({
-      success: true,
       documents: documents || [],
-      count: documents?.length || 0
+      count: documents?.length || 0,
     });
   } catch (error) {
     next(error);
@@ -148,24 +116,23 @@ export const getDocumentFileByID = async (req, res, next) => {
     const userID = req.user.userID;
     const { documentID } = req.params;
 
-    const { data: document, error } = await supabase
-      .from('Document')
-      .select('*')
-      .eq('documentID', documentID)
-      .eq('userID', userID)
-      .single();
-
-    if (error || !document) {
+    if(!(await Document.doesDocumentBelongToUser(documentID, userID))) {
       return res.status(404).json({
-        success: false,
-        message: 'Document not found'
+        message: "Document not found or access denied",
       });
     }
 
-    res.json({
-      success: true,
-      document
-    });
+    const document = await Document.findById(documentID);
+
+    const filePath = path.join( documentsUploadDir , document.fileName);
+    
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({
+        message: "Document file not found",
+      });
+    }
+
+    res.sendFile(path.join(documentsUploadDir , document.fileName));
   } catch (error) {
     next(error);
   }
