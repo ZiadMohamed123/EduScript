@@ -6,6 +6,8 @@ class Question {
   final String text;
   final List<String> options;
   final String? answer;
+  int? selectedIndex;
+  String? userAnswer;
 
   Question({
     required this.id,
@@ -13,5 +15,7 @@ class Question {
     required this.text,
     this.options = const [],
     this.answer,
+    this.selectedIndex,
+    this.userAnswer,
   });
 }

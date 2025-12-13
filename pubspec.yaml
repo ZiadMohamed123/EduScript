@@ -1,19 +1,39 @@
-name: edu_script
-description: "A new Flutter project."
+name: quiz_generator
+description: A Flutter app to generate quizzes using OpenAI API
 publish_to: 'none'
-version: 0.1.0
+
+version: 1.0.0+1
 
 environment:
-  sdk: ^3.9.2
+  sdk: '>=3.0.0 <4.0.0'
 
 dependencies:
   flutter:
     sdk: flutter
 
+  cupertino_icons: ^1.0.6
+
+  # HTTP requests
+  http: ^1.2.1
+
+  # Environment variables (.env)
+  flutter_dotenv: ^5.1.0
+
+  # JSON model support (if you need)
+  collection: ^1.17.2
+
+  # State or utility (optional)
+  provider: ^6.0.5
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^5.0.0
+  flutter_lints: ^3.0.0
 
 flutter:
+
   uses-material-design: true
+
+  # VERY IMPORTANT: Load the .env file as an asset
+  assets:
+    - .env
