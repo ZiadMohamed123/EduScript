@@ -26,12 +26,12 @@ export const signUp = async (req, res, next) => {
     const newUser = await User.create({ email, password, name });
 
     // Create default settings
-    await Settings.create(newUser.userID);
+    await Settings.create(newUser.user_id);
 
     res.status(201).json({
       message: "User created successfully",
       user: {
-        userID: newUser.userID,
+        user_id: newUser.user_id,
         name: newUser.name,
         email: newUser.email,
       },
@@ -63,7 +63,7 @@ export const logIn = async (req, res, next) => {
 
     // Generate JWT token
     const token = jwt.sign(
-      { userID: user.userID, email: user.email },
+      { user_id: user.user_id, email: user.email },
       JWT_SECRET,
       { expiresIn: "7d" }
     );
@@ -72,7 +72,7 @@ export const logIn = async (req, res, next) => {
       message: "Login successful",
       token,
       user: {
-        userID: user.userID,
+        user_id: user.user_id,
         name: user.name,
         email: user.email,
       },

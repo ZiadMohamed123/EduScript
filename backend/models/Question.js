@@ -1,33 +1,33 @@
 import { supabase } from "../config/supabase.js";
 
 export class Question {
-  static async findById(questionID) {
+  static async findById(question_id) {
     const { data, error } = await supabase
       .from("Question")
       .select("*")
-      .eq("QuestionID", questionID)
+      .eq("question_id", question_id)
       .single();
 
     if (error) throw error;
     return data;
   }
 
-  static async findByQuizId(quizID) {
+  static async findByQuizId(quiz_id) {
     const { data, error } = await supabase
       .from("Question")
       .select("*")
-      .eq("QuizID", quizID);
+      .eq("quiz_id", quiz_id);
 
     if (error) throw error;
     return data;
   }
 
-  static async create(quizID, questionData) {
+  static async create(quiz_id, questionData) {
     const { data, error } = await supabase
       .from("Question")
       .insert({
-        QuizID: quizID,
-        Text: questionData.text,
+        quiz_id: quiz_id,
+        text: questionData.text,
       })
       .select()
       .single();
@@ -36,14 +36,14 @@ export class Question {
     return data;
   }
 
-  static async update(questionID, updateData) {
+  static async update(question_id, updateData) {
     const updatePayload = {};
-    if (updateData.text !== undefined) updatePayload.Text = updateData.text;
+    if (updateData.text !== undefined) updatePayload.text = updateData.text;
 
     const { data, error } = await supabase
       .from("Question")
       .update(updatePayload)
-      .eq("QuestionID", questionID)
+      .eq("question_id", question_id)
       .select()
       .single();
 
@@ -51,11 +51,11 @@ export class Question {
     return data;
   }
 
-  static async delete(questionID) {
+  static async delete(question_id) {
     const { error } = await supabase
       .from("Question")
       .delete()
-      .eq("QuestionID", questionID);
+      .eq("question_id", question_id);
 
     if (error) throw error;
     return true;

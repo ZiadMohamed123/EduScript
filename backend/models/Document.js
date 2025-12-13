@@ -4,50 +4,50 @@ import path from "path";
 import { documentsUploadDir } from "../config/multer.js";
 
 export class Document {
-  static async findById(documentID) {
+  static async findById(document_id) {
     const { data, error } = await supabase
       .from("Document")
       .select("*")
-      .eq("documentID", documentID)
+      .eq("document_id", document_id)
       .single();
 
     if (error) throw error;
     return data;
   }
 
-  static async doesDocumentBelongToUser(documentID, userID) {
+  static async doesDocumentBelongToUser(document_id, user_id) {
     const { data, error } = await supabase
       .from("Document")
       .select("*")
-      .eq("documentID", documentID)
-      .eq("userID", userID)
+      .eq("document_id", document_id)
+      .eq("user_id", user_id)
       .single();
 
     return error ? false : true;
   }
 
-  static async findByUserId(userID) {
+  static async findByUserId(user_id) {
     const { data, error } = await supabase
       .from("Document")
-      .select("documentID, name, noOfPages, uploadDate, fileName, Summary")
-      .eq("userID", userID)
-      .order("uploadDate", { ascending: false });
+      .select("document_id, name, no_of_pages, upload_date, file_name, summary")
+      .eq("user_id", user_id)
+      .order("upload_date", { ascending: false });
 
     if (error) throw error;
     return data;
   }
 
-  static async create(userID, documentData) {
+  static async create(user_id, documentData) {
     const { data, error } = await supabase
       .from("Document")
       .insert({
-        userID,
+        user_id: user_id,
         name: documentData.name,
-        noOfPages: documentData.noOfPages || 0,
-        uploadDate: new Date().toISOString(),
-        fileName: documentData.fileName,
-        extractedText: documentData.extractedText || "",
-        Summary: documentData.summary || "",
+        no_of_pages: documentData.noOfPages || 0,
+        upload_date: new Date().toISOString(),
+        file_name: documentData.fileName,
+        extracted_text: documentData.extractedText || "",
+        summary: documentData.summary || "",
       })
       .select()
       .single();
@@ -56,38 +56,38 @@ export class Document {
     return data;
   }
 
-  static async replaceDocumentInFile(documentID, newDocument) {
+  static async replaceDocumentInFile(document_id, newDocument) {
     try {
-      const oldDocumentData = await this.findById(documentID);
-      fs.unlinkSync(path.join(documentsUploadDir, oldDocumentData.fileName));
+      const oldDocumentData = await this.findById(document_id);
+      fs.unlinkSync(path.join(documentsUploadDir, oldDocumentData.file_name));
       return newDocument.filename;
     } catch (error) {
-      const filePath = path.join(documentsUploadDir, newDocument.filename);
+      const filePath = path.join(documentsUploadDir, newDocument.file_name);
       if (fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);
       }
       throw error;
     }
   }
-  static async update(documentID, newDocument, updateData) {
+  static async update(document_id, newDocument, updateData) {
     const updatePayload = {};
     if (newDocument)
-      updatePayload.fileName = await this.replaceDocumentInFile(
-        documentID,
+      updatePayload.file_name = await this.replaceDocumentInFile(
+        document_id,
         newDocument
       );
     if (updateData.name !== undefined) updatePayload.name = updateData.name;
     if (updateData.noOfPages !== undefined)
-      updatePayload.noOfPages = updateData.noOfPages;
+      updatePayload.no_of_pages = updateData.noOfPages;
     if (updateData.extractedText !== undefined)
-      updatePayload.extractedText = updateData.extractedText;
+      updatePayload.extracted_text = updateData.extractedText;
     if (updateData.summary !== undefined)
-      updatePayload.Summary = updateData.summary;
+      updatePayload.summary = updateData.summary;
 
     const { data, error } = await supabase
       .from("Document")
       .update(updatePayload)
-      .eq("documentID", documentID)
+      .eq("document_id", document_id)
       .select()
       .single();
 
@@ -95,19 +95,19 @@ export class Document {
     return data;
   }
 
-  static async delete(documentID) {
+  static async delete(document_id) {
     try {
       fs.unlinkSync(
         path.join(
           documentsUploadDir,
-          (await this.findById(documentID)).fileName
+          (await this.findById(document_id)).file_name
         )
       );
 
       const { error } = await supabase
         .from("Document")
         .delete()
-        .eq("documentID", documentID);
+        .eq("document_id", document_id);
 
       if (error) throw error;
     } catch (error) {

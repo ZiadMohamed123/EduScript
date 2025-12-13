@@ -28,11 +28,11 @@ export class User {
     return isPasswordValid ? data : null;
   }
 
-  static async findById(userID) {
+  static async findById(user_id) {
     const { data, error } = await supabase
       .from("User")
-      .select("userID, name, email, profilePicture")
-      .eq("userID", userID)
+      .select("user_id, name, email, profile_picture")
+      .eq("user_id", user_id)
       .single();
 
     if (error) throw error;
@@ -56,11 +56,11 @@ export class User {
     return data;
   }
 
-  static async update(userID, updateData) {
+  static async update(user_id, updateData) {
     const { data, error } = await supabase
       .from("User")
       .update(updateData)
-      .eq("userID", userID)
+      .eq("user_id", user_id)
       .select()
       .single();
 
@@ -68,16 +68,16 @@ export class User {
     return data;
   }
 
-  static async delete(userID) {
-    const { error } = await supabase.from("User").delete().eq("userID", userID);
+  static async delete(user_id) {
+    const { error } = await supabase.from("User").delete().eq("user_id", user_id);
 
     if (error) throw error;
     return true;
   }
 
-  static async replaceProfilePictureInFile(userID, newProfilePicture) {
+  static async replaceProfilePictureInFile(user_id, newProfilePicture) {
     try {
-      await this.deleteProfilePicture(userID);
+      await this.deleteProfilePicture(user_id);
       return newProfilePicture.filename;
     } catch (error) {
       if (newProfilePicture) {
@@ -90,11 +90,11 @@ export class User {
     }
   }
 
-  static async deleteProfilePicture(userID) {
+  static async deleteProfilePicture(user_id) {
     try {
-      const userData = await this.findById(userID);
-      if (userData.profilePicture) {
-        const filePath = path.join(profilePicturesUploadDir, userData.profilePicture);
+      const userData = await this.findById(user_id);
+      if (userData.profile_picture) {
+        const filePath = path.join(profilePicturesUploadDir, userData.profile_picture);
         if (fs.existsSync(filePath)) {
           fs.unlinkSync(filePath);
         }
