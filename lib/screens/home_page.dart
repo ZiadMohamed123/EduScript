@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
-import '../widgets/chat_widget.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -120,15 +119,11 @@ class HomePage extends StatelessWidget {
                 children: [
                   Expanded(
                     child: _ActionCard(
-                      icon: Icons.summarize,
-                      title: 'Summaries',
-                      subtitle: 'Quick review',
+                      icon: Icons.school,
+                      title: 'AI Tutor',
+                      subtitle: 'Study & Learn',
                       onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Summaries feature coming soon!'),
-                          ),
-                        );
+                        Navigator.pushNamed(context, '/summary');
                       },
                     ),
                   ),
@@ -145,10 +140,6 @@ class HomePage extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 24),
-
-              // AI Chat Widget
-              const ChatWidget(),
             ],
           ),
         ),
