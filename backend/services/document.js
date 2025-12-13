@@ -5,7 +5,7 @@ import { documentsUploadDir } from "../config/multer.js";
 
 export const addDocument = async (req, res, next) => {
   try {
-    const userID = req.user.userID;
+    const user_id = req.user.user_id;
     const { name, noOfPages, extractedText, summary } = req.body;
 
     // Validate required fields
@@ -15,7 +15,7 @@ export const addDocument = async (req, res, next) => {
       });
     }
 
-    const newDocument = await Document.create(userID , {
+    const newDocument = await Document.create(user_id , {
       name,
       fileName: req.file.filename,
       noOfPages,
@@ -34,12 +34,12 @@ export const addDocument = async (req, res, next) => {
 
 export const updateDocument = async (req, res, next) => {
   try {
-    const userID = req.user.userID;
+    const user_id = req.user.user_id;
     const { documentID } = req.params;
     const { name, noOfPages, extractedText, summary } = req.body;
 
     // Check if document belongs to user
-    if (!(await Document.doesDocumentBelongToUser(documentID, userID))) {
+    if (!(await Document.doesDocumentBelongToUser(documentID, user_id))) {
       return res.status(404).json({
         message: "Document not found or access denied",
       });
@@ -69,11 +69,11 @@ export const updateDocument = async (req, res, next) => {
 
 export const deleteDocument = async (req, res, next) => {
   try {
-    const userID = req.user.userID;
+    const user_id = req.user.user_id;
     const { documentID } = req.params;
 
     // Check if document belongs to user
-    if (!(await Document.doesDocumentBelongToUser(documentID, userID))) {
+    if (!(await Document.doesDocumentBelongToUser(documentID, user_id))) {
       return res.status(404).json({
         message: "Document not found or access denied",
       });
@@ -98,9 +98,9 @@ export const deleteDocument = async (req, res, next) => {
 
 export const getAllDocumentsMetadataByUserID = async (req, res, next) => {
   try {
-    const userID = req.user.userID;
+    const user_id = req.user.user_id;
 
-    const documents = await Document.findByUserId(userID);
+    const documents = await Document.findByUserId(user_id);
 
     res.json({
       documents: documents || [],
@@ -113,10 +113,10 @@ export const getAllDocumentsMetadataByUserID = async (req, res, next) => {
 
 export const getDocumentFileByID = async (req, res, next) => {
   try {
-    const userID = req.user.userID;
+    const user_id = req.user.user_id;
     const { documentID } = req.params;
 
-    if(!(await Document.doesDocumentBelongToUser(documentID, userID))) {
+    if(!(await Document.doesDocumentBelongToUser(documentID, user_id))) {
       return res.status(404).json({
         message: "Document not found or access denied",
       });
@@ -124,7 +124,7 @@ export const getDocumentFileByID = async (req, res, next) => {
 
     const document = await Document.findById(documentID);
 
-    const filePath = path.join( documentsUploadDir , document.fileName);
+    const filePath = path.join(documentsUploadDir , document.file_name);
     
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({
@@ -132,7 +132,7 @@ export const getDocumentFileByID = async (req, res, next) => {
       });
     }
 
-    res.sendFile(path.join(documentsUploadDir , document.fileName));
+    res.sendFile(path.join(documentsUploadDir , document.file_name));
   } catch (error) {
     next(error);
   }

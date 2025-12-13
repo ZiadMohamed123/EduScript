@@ -5,7 +5,7 @@ import { Answer } from "../models/Answer.js";
 
 export const addQuiz = async (req, res, next) => {
   try {
-    const userID = req.user.userID;
+    const user_id = req.user.user_id;
     const { documentID, name, questions } = req.body;
 
     // Validate input
@@ -17,7 +17,7 @@ export const addQuiz = async (req, res, next) => {
     }
 
     // Verify that the quiz belongs to a document owned by the user
-    if (!(await Document.doesDocumentBelongToUser(documentID, userID))) {
+    if (!(await Document.doesDocumentBelongToUser(documentID, user_id))) {
       return res.status(403).json({
         message: "Document not found or access denied",
       });
@@ -28,7 +28,6 @@ export const addQuiz = async (req, res, next) => {
 
     // Add questions and answers if provided
     newQuiz = { ...newQuiz, questions: [] };
-
     if (questions && Array.isArray(questions) && questions.length > 0) {
       for (const questionData of questions) {
         // Validate question has text
@@ -37,7 +36,7 @@ export const addQuiz = async (req, res, next) => {
         }
 
         // Create question
-        let newQuestion = await Question.create(newQuiz.QuizID, {
+        let newQuestion = await Question.create(newQuiz.quiz_id, {
           text: questionData.text,
         });
 
@@ -55,7 +54,7 @@ export const addQuiz = async (req, res, next) => {
               continue; // Skip invalid answers
             }
 
-            const newAnswer = await Answer.create(newQuestion.QuestionID, {
+            const newAnswer = await Answer.create(newQuestion.question_id, {
               text: answerData.text,
               isCorrect: answerData.isCorrect || false,
             });
@@ -79,13 +78,13 @@ export const addQuiz = async (req, res, next) => {
 
 export const getQuiz = async (req, res, next) => {
   try {
-    const userID = req.user.userID;
+    const user_id = req.user.user_id;
     const { documentID } = req.params;
 
     // Get the quiz
     let quizzes = await Quiz.findByDocumentId(documentID);
 
-    if (!quizzes || quizzes.length === 0) {
+    if (!quizzes) {
       return res.status(404).json({
         message: "Quizzes not found",
       });
@@ -93,7 +92,7 @@ export const getQuiz = async (req, res, next) => {
 
     for (const quiz of quizzes) {
       // Verify that the quiz belongs to a document owned by the user
-      if (!(await Document.doesDocumentBelongToUser(quiz.documentID, userID))) {
+      if (!(await Document.doesDocumentBelongToUser(quiz.document_id, user_id))) {
         return res.status(403).json({
           message: "Document not found or access denied",
         });
@@ -105,10 +104,10 @@ export const getQuiz = async (req, res, next) => {
     for (let quiz of quizzes) {
       // Fetch questions and answers
       quiz = { ...quiz, questions: [] };
-      const questions = await Question.findByQuizId(quiz.QuizID);
+      const questions = await Question.findByQuizId(quiz.quiz_id);
 
       for (const question of questions || []) {
-        const answers = await Answer.findByQuestionId(question.QuestionID);
+        const answers = await Answer.findByQuestionId(question.question_id);
         quiz.questions.push({
           ...question,
           answers: answers || [],
@@ -119,7 +118,6 @@ export const getQuiz = async (req, res, next) => {
     }
 
     res.json({
-      success: true,
       quizzes: quizzesWithDetails,
     });
   } catch (error) {
@@ -129,7 +127,7 @@ export const getQuiz = async (req, res, next) => {
 
 export const editQuiz = async (req, res, next) => {
   try {
-    const userID = req.user.userID;
+    const user_id = req.user.user_id;
     const { quizID } = req.params;
     const { name, questions } = req.body;
 
@@ -149,7 +147,7 @@ export const editQuiz = async (req, res, next) => {
     }
 
     // Verify that the quiz belongs to a document owned by the user
-    if (!(await Document.doesDocumentBelongToUser(quiz.documentID, userID))) {
+    if (!(await Document.doesDocumentBelongToUser(quiz.document_id, user_id))) {
       return res.status(403).json({
         message: "Document not found or access denied",
       });
@@ -166,14 +164,14 @@ export const editQuiz = async (req, res, next) => {
         let questionToAdd;
 
         // If question has ID, it's an existing question - update it
-        if (questionData.QuestionID) {
+        if (questionData.question_id) {
           // Update existing question
           if (questionData.text) {
-            questionToAdd = await Question.update(questionData.QuestionID, {
+            questionToAdd = await Question.update(questionData.question_id, {
               text: questionData.text,
             });
           } else {
-            questionToAdd = await Question.findById(questionData.QuestionID);
+            questionToAdd = await Question.findById(questionData.question_id);
           }
         } else {
           // Create new question
@@ -197,20 +195,20 @@ export const editQuiz = async (req, res, next) => {
             let answerToAdd;
 
             // If answer has ID, it's an existing answer - update it
-            if (answerData.AnswerID) {
+            if (answerData.answer_id) {
               // Update existing answer
-              answerToAdd = await Answer.update(answerData.AnswerID, {
+              answerToAdd = await Answer.update(answerData.answer_id, {
                 text: answerData.text,
-                isCorrect: answerData.isCorrect,
+                isCorrect: answerData.is_correct,
               });
             } else {
               // Create new answer
               if (!answerData.text) {
                 continue; // Skip invalid answers
               }
-              answerToAdd = await Answer.create(questionToAdd.QuestionID, {
+              answerToAdd = await Answer.create(questionToAdd.question_id, {
                 text: answerData.text,
-                isCorrect: answerData.isCorrect || false,
+                isCorrect: answerData.is_correct || false,
               });
             }
 
@@ -219,7 +217,7 @@ export const editQuiz = async (req, res, next) => {
         } else {
           // Fetch existing answers if not updating
           const existingAnswers = await Answer.findByQuestionId(
-            questionToAdd.QuestionID
+            questionToAdd.question_id
           );
           questionToAdd.answers = existingAnswers || [];
         }
@@ -231,7 +229,7 @@ export const editQuiz = async (req, res, next) => {
       const existingQuestions = await Question.findByQuizId(quizID);
       for (const existingQuestion of existingQuestions || []) {
         const answers = await Answer.findByQuestionId(
-          existingQuestion.QuestionID
+          existingQuestion.question_id
         );
         updatedQuiz.questions.push({
           ...existingQuestion,
@@ -251,7 +249,7 @@ export const editQuiz = async (req, res, next) => {
 
 export const deleteQuiz = async (req, res, next) => {
   try {
-    const userID = req.user.userID;
+    const user_id = req.user.user_id;
     const { quizID } = req.params;
 
     // Get the quiz
@@ -264,7 +262,7 @@ export const deleteQuiz = async (req, res, next) => {
     }
 
     // Verify that the quiz belongs to a document owned by the user
-    if (!(await Document.doesDocumentBelongToUser(quiz.documentID, userID))) {
+    if (!(await Document.doesDocumentBelongToUser(quiz.document_id, user_id))) {
       return res.status(403).json({
         message: "Document not found or access denied",
       });

@@ -1,25 +1,25 @@
 import { supabase } from "../config/supabase.js";
 
 export class Settings {
-  static async findByUserId(userID) {
+  static async findByUserId(user_id) {
     const { data, error } = await supabase
       .from("Settings")
       .select("*")
-      .eq("userID", userID)
+      .eq("user_id", user_id)
       .single();
 
     if (error) throw error;
     return data;
   }
 
-  static async create(userID, settingsData = {}) {
+  static async create(user_id, settingsData = {}) {
     const { data, error } = await supabase
       .from("Settings")
       .insert({
-        userID,
-        isNotificationOpen: settingsData.isNotificationOpen ?? true,
-        isDarkModeOpen: settingsData.isDarkModeOpen ?? false,
-        Language: settingsData.Language ?? "English",
+        user_id: user_id,
+        is_notification_open: settingsData.isNotificationOpen ?? true,
+        is_dark_mode_open: settingsData.isDarkModeOpen ?? false,
+        language: settingsData.Language ?? "English",
       })
       .select()
       .single();
@@ -28,11 +28,11 @@ export class Settings {
     return data;
   }
 
-  static async update(userID, updateData) {
+  static async update(user_id, updateData) {
     const { data, error } = await supabase
       .from("Settings")
       .update(updateData)
-      .eq("userID", userID)
+      .eq("user_id", user_id)
       .select()
       .single();
 
@@ -40,29 +40,29 @@ export class Settings {
     return data;
   }
 
-  static async toggleNotification(userID) {
-    const settings = await this.findByUserId(userID);
-    return await this.update(userID, {
-      isNotificationOpen: !settings.isNotificationOpen,
+  static async toggleNotification(user_id) {
+    const settings = await this.findByUserId(user_id);
+    return await this.update(user_id, {
+      is_notification_open: !settings.is_notification_open,
     });
   }
 
-  static async toggleDarkMode(userID) {
-    const settings = await this.findByUserId(userID);
-    return await this.update(userID, {
-      isDarkModeOpen: !settings.isDarkModeOpen,
+  static async toggleDarkMode(user_id) {
+    const settings = await this.findByUserId(user_id);
+    return await this.update(user_id, {
+      is_dark_mode_open: !settings.is_dark_mode_open,
     });
   }
 
-  static async updateLanguage(userID, language) {
-    return await this.update(userID, { Language: language });
+  static async updateLanguage(user_id, language) {
+    return await this.update(user_id, { language: language });
   }
 
-  static async delete(userID) {
+  static async delete(user_id) {
     const { error } = await supabase
       .from("Settings")
       .delete()
-      .eq("userID", userID);
+      .eq("user_id", user_id);
 
     if (error) throw error;
     return true;

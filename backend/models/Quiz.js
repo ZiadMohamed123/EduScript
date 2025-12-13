@@ -1,35 +1,35 @@
 import { supabase } from "../config/supabase.js";
 
 export class Quiz {
-  static async findById(quizID) {
+  static async findById(quiz_id) {
     const { data, error } = await supabase
       .from("Quiz")
       .select("*")
-      .eq("QuizID", quizID)
+      .eq("quiz_id", quiz_id)
       .single();
 
     if (error) throw error;
     return data;
   }
 
-  static async findByDocumentId(documentID) {
+  static async findByDocumentId(document_id) {
     const { data, error } = await supabase
       .from("Quiz")
       .select("*")
-      .eq("documentID", documentID)
-      .order("DateCreated", { ascending: false });
+      .eq("document_id", document_id)
+      .order("date_created", { ascending: false });
 
     if (error) throw error;
     return data;
   }
 
-  static async create(documentID, quizData) {
+  static async create(document_id, quizData) {
     const { data, error } = await supabase
       .from("Quiz")
       .insert({
-        documentID,
-        Name: quizData.name,
-        DateCreated: new Date().toISOString(),
+        document_id,
+        name: quizData.name,
+        date_created: new Date().toISOString(),
       })
       .select()
       .single();
@@ -38,14 +38,14 @@ export class Quiz {
     return data;
   }
 
-  static async update(quizID, updateData) {
+  static async update(quiz_id, updateData) {
     const updatePayload = {};
-    if (updateData.name !== undefined) updatePayload.Name = updateData.name;
+    if (updateData.name !== undefined) updatePayload.name = updateData.name;
 
     const { data, error } = await supabase
       .from("Quiz")
       .update(updatePayload)
-      .eq("QuizID", quizID)
+      .eq("quiz_id", quiz_id)
       .select()
       .single();
 
@@ -53,11 +53,11 @@ export class Quiz {
     return data;
   }
 
-  static async delete(quizID) {
+  static async delete(quiz_id) {
     const { error } = await supabase
       .from("Quiz")
       .delete()
-      .eq("QuizID", quizID);
+      .eq("quiz_id", quiz_id);
 
     if (error) throw error;
     return true;

@@ -5,7 +5,7 @@ export class Answer {
     const { data, error } = await supabase
       .from("Answer")
       .select("*")
-      .eq("AnswerID", answerID)
+      .eq("answer_id", answerID)
       .single();
 
     if (error) throw error;
@@ -16,7 +16,7 @@ export class Answer {
     const { data, error } = await supabase
       .from("Answer")
       .select("*")
-      .eq("QuestionID", questionID);
+      .eq("question_id", questionID);
 
     if (error) throw error;
     return data;
@@ -26,9 +26,9 @@ export class Answer {
     const { data, error } = await supabase
       .from("Answer")
       .insert({
-        QuestionID: questionID,
-        Text: answerData.text,
-        isCorrect: answerData.isCorrect || false,
+        question_id: questionID,
+        text: answerData.text,
+        is_correct: answerData.isCorrect || false,
       })
       .select()
       .single();
@@ -37,15 +37,15 @@ export class Answer {
     return data;
   }
 
-  static async update(answerID, updateData) {
+  static async update(answer_id, updateData) {
     const updatePayload = {};
-    if (updateData.text !== undefined) updatePayload.Text = updateData.text;
-    if (updateData.isCorrect !== undefined) updatePayload.isCorrect = updateData.isCorrect;
+    if (updateData.text !== undefined) updatePayload.text = updateData.text;
+    if (updateData.isCorrect !== undefined) updatePayload.is_correct = updateData.isCorrect;
 
     const { data, error } = await supabase
       .from("Answer")
       .update(updatePayload)
-      .eq("AnswerID", answerID)
+      .eq("answer_id", answer_id)
       .select()
       .single();
 
@@ -53,11 +53,11 @@ export class Answer {
     return data;
   }
 
-  static async delete(answerID) {
+  static async delete(answer_id) {
     const { error } = await supabase
       .from("Answer")
       .delete()
-      .eq("AnswerID", answerID);
+      .eq("answer_id", answer_id);
 
     if (error) throw error;
     return true;
