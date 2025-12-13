@@ -75,15 +75,6 @@ export const deleteUser = async (req, res, next) => {
     // Delete user profile picture
     await User.deleteProfilePicture(userID);
 
-    // Delete user settings
-    await Settings.delete(userID);
-
-    // Delete user documents
-    const documents = await Document.findByUserId(userID);
-    for (const doc of documents) {
-      await Document.delete(doc.documentID);
-    }
-
     // Delete user
     await User.delete(userID);
 

@@ -270,18 +270,6 @@ export const deleteQuiz = async (req, res, next) => {
       });
     }
 
-    // Delete all questions and their answers
-    const questions = await Question.findByQuizId(quizID);
-    for (const question of questions || []) {
-      // Delete all answers for this question
-      const answers = await Answer.findByQuestionId(question.QuestionID);
-      for (const answer of answers || []) {
-        await Answer.delete(answer.AnswerID);
-      }
-      // Delete the question
-      await Question.delete(question.QuestionID);
-    }
-
     // Delete the quiz
     await Quiz.delete(quizID);
 
