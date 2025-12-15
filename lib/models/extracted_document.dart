@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class ExtractedDocument {
   final String? title;
   final String? date;
@@ -10,6 +12,21 @@ class ExtractedDocument {
     this.studentName,
     required this.questions,
   });
+
+  factory ExtractedDocument.fromJson(String jsonString) {
+    try {
+      final json = jsonDecode(jsonString) as Map<String, dynamic>;
+      return ExtractedDocument(
+        title: json['title'] as String?,
+        date: json['date'] as String?,
+        studentName: json['studentName'] as String?,
+        questions: List<String>.from(json['questions'] as List<dynamic>? ?? []),
+      );
+    } catch (e) {
+      // Fallback to empty document if parsing fails
+      return ExtractedDocument(questions: []);
+    }
+  }
 
   factory ExtractedDocument.fromRawText(String raw) {
     final lines = raw.split("\n").map((e) => e.trim()).toList();
@@ -34,3 +51,4 @@ class ExtractedDocument {
     return match?.group(2);
   }
 }
+

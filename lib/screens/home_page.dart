@@ -60,28 +60,23 @@ class HomePage extends StatelessWidget {
               const SizedBox(height: 24),
 
               // Main Action Button
-              ElevatedButton.icon(
+                ElevatedButton.icon(
                 onPressed: () {
-                  // TODO: Implement camera/document scanner
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Camera/Scanner feature coming soon!'),
-                    ),
-                  );
+                  Navigator.pushNamed(context, '/extracted');
                 },
                 icon: const Icon(Icons.camera_alt, size: 28),
                 label: const Padding(
                   padding: EdgeInsets.all(16.0),
                   child: Text(
-                    'Scan New Document',
-                    style: TextStyle(fontSize: 18),
+                  'Scan New Document',
+                  style: TextStyle(fontSize: 18),
                   ),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(12),
                   ),
                   elevation: 4,
                 ),

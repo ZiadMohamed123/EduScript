@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:provider/provider.dart';
 import 'screens/splash_screen.dart';
 import 'screens/home_page.dart';
 import 'screens/settings_page.dart';
@@ -10,6 +11,8 @@ import 'screens/auth/login_page.dart';
 import 'screens/auth/signup_page.dart';
 import 'utils/app_theme.dart';
 import 'utils/theme_controller.dart';
+import 'screens/extraction_result_page.dart';
+import 'providers/document_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,7 +20,7 @@ Future<void> main() async {
   // Load environment variables from .env file
   // When .env is in assets (pubspec.yaml), dotenv.load() should find it automatically
   try {
-    await dotenv.load(fileName: '.env');
+    await dotenv.load(fileName: 'assets/.env');
     debugPrint('✓ Environment variables loaded successfully');
 
     // Verify the key is loaded
@@ -72,6 +75,10 @@ class MainApp extends StatelessWidget {
           routes: {
             '/': (context) => const SplashScreen(),
             '/login': (context) => const LoginPage(),
+            '/extracted': (context) => ChangeNotifierProvider(
+              create: (context) => DocumentProvider(),
+              child: const ExtractionResultPage(),
+            ),
             '/signup': (context) => const SignUpPage(),
             '/home': (context) => const HomePage(),
             '/settings': (context) => const SettingsPage(),

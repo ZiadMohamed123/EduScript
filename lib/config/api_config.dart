@@ -55,4 +55,20 @@ class ApiConfig {
   static String? get openAiApiKey {
     return dotenv.env['OPENAI_API_KEY'];
   }
+   static String get nvcApiKey {
+    if (!dotenv.isInitialized) {
+      throw Exception(
+        'Environment variables not loaded. Make sure .env file exists and is loaded in main.dart',
+      );
+    }
+
+    final key = dotenv.env['NVC_API_KEY']?.trim();
+    if (key == null || key.isEmpty) {
+      developer.log('Available env keys: ${dotenv.env.keys.toList()}');
+      throw Exception(
+        'NVC_API_KEY not found in .env file. Please add it.'
+      );
+    }
+    return key;
+  }
 }
