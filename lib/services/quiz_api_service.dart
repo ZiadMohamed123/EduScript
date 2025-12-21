@@ -2,6 +2,8 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:io' show Platform;
 
 import '../models/question.dart';
 import '../models/question_type.dart';
@@ -13,6 +15,59 @@ class QuizApiService {
     } catch (e) {
       // dotenv not initialized, return empty string
       return '';
+    }
+  }
+
+  /// Base URL of your Node backend.
+  /// 
+  /// If BACKEND_BASE_URL is set in .env, it will be used.
+  /// Otherwise, automatically detects the platform:
+  /// - Android Emulator: http://10.0.2.2:5000
+  /// - Chrome/Web: http://localhost:5000
+  /// - iOS Simulator: http://localhost:5000
+  /// - Physical Device: You must set BACKEND_BASE_URL to your computer's IP
+  String get backendBaseUrl {
+    try {
+      final envUrl = dotenv.env['BACKEND_BASE_URL'];
+      if (envUrl != null && envUrl.isNotEmpty) {
+        return envUrl;
+      }
+    } catch (e) {
+      // dotenv not initialized, continue to auto-detection
+    }
+
+    // Auto-detect based on platform
+    if (kIsWeb) {
+      // Chrome/Web browser
+      return 'http://localhost:5000';
+    } else {
+      // Mobile/Desktop platforms
+      try {
+        if (Platform.isAndroid) {
+          // Android Emulator (10.0.2.2 maps to host's localhost)
+          // For physical Android devices, you need to set BACKEND_BASE_URL to your computer's IP
+          return 'http://10.0.2.2:5000';
+        } else if (Platform.isIOS) {
+          // iOS Simulator
+          return 'http://localhost:5000';
+        } else {
+          // Desktop (Windows, Mac, Linux)
+          return 'http://localhost:5000';
+        }
+      } catch (e) {
+        // Platform not available (shouldn't happen, but fallback)
+        return 'http://localhost:5000';
+      }
+    }
+  }
+
+  /// Optional: default JWT token for dev/testing.
+  /// In production you should pass the token from your auth flow.
+  String? get backendAuthToken {
+    try {
+      return dotenv.env['BACKEND_JWT'];
+    } catch (e) {
+      return null;
     }
   }
 
@@ -186,6 +241,153 @@ Return ONLY the JSON array, no other text. Do not include markdown code blocks o
         options: List<String>.from(q['options'] ?? []),
       );
     }).toList();
+  }
+
+  /// Save a generated quiz to the backend (Supabase via Node API).
+  ///
+  /// Expects your backend to expose POST /quiz/add with the body:
+  /// {
+  ///   "documentID": "...",
+  ///   "name": "Quiz title",
+  ///   "questions": [
+  ///     { "text": "...", "answers": [ { "text": "...", "isCorrect": false } ] }
+  ///   ]
+  /// }
+  Future<Map<String, dynamic>> saveQuizToDatabase({
+    required String documentId,
+    required String name,
+    required List<Question> questions,
+    String? authToken,
+  }) async {
+    final baseUrl = backendBaseUrl;
+    if (baseUrl.isEmpty) {
+      throw Exception(
+        'BACKEND_BASE_URL is not set in .env.\n'
+        'Add e.g. BACKEND_BASE_URL=http://localhost:5000 to your .env file.',
+      );
+    }
+
+    final token = authToken ?? backendAuthToken;
+    if (token == null || token.isEmpty) {
+      throw Exception(
+        'Missing JWT token for backend.\n'
+        'Either pass authToken to saveQuizToDatabase or set BACKEND_JWT in .env.\n\n'
+        'To get a token:\n'
+        '1. Start your backend: cd backend && npm start\n'
+        '2. POST to http://localhost:5000/auth/login with email/password\n'
+        '3. Copy the token from the response\n'
+        '4. Add BACKEND_JWT=your-token-here to .env',
+      );
+    }
+
+    final url = Uri.parse('$baseUrl/quiz/add');
+    
+    // Debug info (will be shown in error if connection fails)
+    final debugInfo = '''
+Attempting to connect to: $baseUrl
+Full URL: $url
+Platform: ${kIsWeb ? 'Web/Chrome' : Platform.isAndroid ? 'Android' : Platform.isIOS ? 'iOS' : 'Desktop'}
+''';
+
+    // Map Flutter Question model to backend Question/Answer shape
+    final questionsPayload = questions.map((q) {
+      List<Map<String, dynamic>>? answers;
+
+      if (q.type == QuestionType.mcq && q.options.isNotEmpty) {
+        answers = q.options
+            .map((opt) => {
+                  'text': opt,
+                  // We don't know the correct answer here, so default to false.
+                  'isCorrect': false,
+                })
+            .toList();
+      } else if (q.type == QuestionType.trueFalse) {
+        answers = [
+          {'text': 'True', 'isCorrect': false},
+          {'text': 'False', 'isCorrect': false},
+        ];
+      } else if (q.options.isNotEmpty) {
+        // For other types with options, just store them as non-correct answers.
+        answers = q.options
+            .map((opt) => {
+                  'text': opt,
+                  'isCorrect': false,
+                })
+            .toList();
+      }
+
+      final map = <String, dynamic>{
+        'text': q.text,
+      };
+      if (answers != null && answers.isNotEmpty) {
+        map['answers'] = answers;
+      }
+      return map;
+    }).toList();
+
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token',
+    };
+
+    try {
+      final response = await http.post(
+        url,
+        headers: headers,
+        body: jsonEncode({
+          'documentID': documentId,
+          'name': name,
+          'questions': questionsPayload,
+        }),
+      ).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw Exception(
+            'Connection timeout. Is your backend server running?\n\n'
+            'Troubleshooting:\n'
+            '1. Make sure your backend is running: cd backend && npm start\n'
+            '2. Check BACKEND_BASE_URL in .env:\n'
+            '   - Android Emulator: http://10.0.2.2:5000\n'
+            '   - iOS Simulator: http://localhost:5000\n'
+            '   - Physical Device: http://YOUR_COMPUTER_IP:5000\n'
+            '3. Verify the backend is accessible at: $baseUrl'
+          );
+        },
+      );
+
+      if (response.statusCode != 201) {
+        throw Exception(
+          'Failed to save quiz (${response.statusCode}): ${response.body}',
+        );
+      }
+
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return data;
+    } on http.ClientException catch (e) {
+      throw Exception(
+        'Network error: ${e.message}\n\n'
+        '$debugInfo'
+        'Troubleshooting:\n'
+        '1. Is your backend server running?\n'
+        '   → Open terminal: cd backend && npm start\n'
+        '   → You should see: "Server running on port: 5000"\n\n'
+        '2. Test the backend URL:\n'
+        '   → Open in browser: $baseUrl/auth/login\n'
+        '   → If it works, backend is running\n\n'
+        '3. Check BACKEND_BASE_URL in .env:\n'
+        '   - Android Emulator: http://10.0.2.2:5000\n'
+        '   - Chrome/Web: http://localhost:5000\n'
+        '   - iOS Simulator: http://localhost:5000\n'
+        '   - Physical Device: http://YOUR_COMPUTER_IP:5000\n\n'
+        '4. Current detected URL: $baseUrl\n\n'
+        '5. Make sure BACKEND_JWT is set in .env with a valid token'
+      );
+    } catch (e) {
+      if (e.toString().contains('timeout') || e.toString().contains('Connection')) {
+        rethrow;
+      }
+      throw Exception('Error saving quiz: $e');
+    }
   }
 
   Future<Map<String, dynamic>> submitQuiz(List<Question> questions) async {

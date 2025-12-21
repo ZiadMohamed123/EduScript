@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
+import 'quiz_generator_page.dart';
 
 class Document {
   final String id;
@@ -240,7 +241,15 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
               title: const Text('Generate MCQ'),
               onTap: () {
                 Navigator.pop(context);
-                Navigator.pushNamed(context, '/quiz');
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => QuizGeneratorPage(
+                      documentId: document.id,
+                      documentTitle: document.title,
+                    ),
+                  ),
+                );
               },
             ),
             ListTile(
