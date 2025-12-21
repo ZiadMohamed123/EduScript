@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:quiz_generator/screens/scanner_page.dart';
 import 'screens/splash_screen.dart';
 import 'screens/home_page.dart';
 import 'screens/settings_page.dart';
@@ -49,6 +50,7 @@ class MainApp extends StatelessWidget {
             '/settings': (context) => const SettingsPage(),
             '/documents': (context) => const DocumentsListPage(),
             '/quiz': (context) => const QuizGeneratorPage(),
+            '/scanner':(context) => const ScannerPage(),
           },
         );
       },
