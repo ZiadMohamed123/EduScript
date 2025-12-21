@@ -9,7 +9,15 @@ import '../widgets/essay_widget.dart';
 import '../widgets/short_answer_widget.dart';
 
 class QuizGeneratorPage extends StatefulWidget {
-  const QuizGeneratorPage({super.key});
+  /// Optional: document context for saving the quiz to the backend.
+  final String? documentId;
+  final String? documentTitle;
+
+  const QuizGeneratorPage({
+    super.key,
+    this.documentId,
+    this.documentTitle,
+  });
 
   @override
   State<QuizGeneratorPage> createState() => _QuizGeneratorPageState();
@@ -21,6 +29,7 @@ class _QuizGeneratorPageState extends State<QuizGeneratorPage> {
 
   bool _isLoading = false;
   bool _isSubmitting = false;
+  bool _isSavingQuiz = false;
   List<Question> _questions = [];
   int _currentIndex = 0;
   Map<String, dynamic>? _quizResults;
@@ -91,6 +100,59 @@ class _QuizGeneratorPageState extends State<QuizGeneratorPage> {
     } finally {
       if (mounted) {
         setState(() => _isSubmitting = false);
+      }
+    }
+  }
+
+  Future<void> _saveQuizToDatabase() async {
+    if (_questions.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Generate a quiz before saving.'),
+        ),
+      );
+      return;
+    }
+
+    if (widget.documentId == null || widget.documentId!.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'No document selected. Open the quiz generator from a document to save it.',
+          ),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isSavingQuiz = true);
+    try {
+      final name = widget.documentTitle ?? 'Generated Quiz';
+      await _api.saveQuizToDatabase(
+        documentId: widget.documentId!,
+        name: name,
+        questions: _questions,
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Quiz saved to database successfully.'),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error saving quiz: $e'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSavingQuiz = false);
       }
     }
   }
@@ -259,7 +321,11 @@ class _QuizGeneratorPageState extends State<QuizGeneratorPage> {
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 255, 255, 255),
       appBar: AppBar(
-        title: const Text("Quiz Generator"),
+        title: Text(
+          widget.documentTitle != null
+              ? "Quiz – ${widget.documentTitle}"
+              : "Quiz Generator",
+        ),
         backgroundColor: const Color(0xFF0066CC),
       ),
       body: Column(
@@ -331,7 +397,7 @@ Padding(
                       ),
           ),
 
-          // Navigation and Submit Button
+          // Navigation, Submit, and Save Buttons
           if (_questions.isNotEmpty && _quizResults == null) ...[
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -368,6 +434,29 @@ Padding(
                         fontSize: 16,
                       ),
                     ),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: _isSavingQuiz ? null : _saveQuizToDatabase,
+              icon: _isSavingQuiz
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.save),
+              label: const Text(
+                "Save Quiz to Library",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF0066CC),
+                side: const BorderSide(color: Color(0xFF0066CC)),
+                minimumSize: const Size(double.infinity, 48),
+              ),
             ),
           ],
 
