@@ -10,47 +10,25 @@ import 'screens/auth/login_page.dart';
 import 'screens/auth/signup_page.dart';
 import 'utils/app_theme.dart';
 import 'utils/theme_controller.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-Future<void> main() async {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Load environment variables from .env file
-  // When .env is in assets (pubspec.yaml), dotenv.load() should find it automatically
   try {
-    await dotenv.load(fileName: '.env');
-    debugPrint('✓ Environment variables loaded successfully');
-
-    // Verify the key is loaded
-    if (dotenv.isInitialized) {
-      final key = dotenv.env['OPENROUTER_API_KEY']?.trim();
-      final model =
-          dotenv.env['OPENROUTER_MODEL']?.trim() ?? 'openai/gpt-oss-120b:free';
-      if (key != null && key.isNotEmpty) {
-        debugPrint('✓ OPENROUTER_API_KEY found: ${key.substring(0, 10)}...');
-        debugPrint('✓ Key length: ${key.length}');
-        debugPrint('✓ Using model: $model');
-        debugPrint('✓ API is ready to use!');
-      } else {
-        debugPrint('✗ OPENROUTER_API_KEY is null or empty');
-        debugPrint('✗ Available keys: ${dotenv.env.keys.toList()}');
-        debugPrint(
-          '⚠ Please check your .env file contains: OPENROUTER_API_KEY=your_key',
-        );
-        debugPrint('⚠ Get your free API key from: https://openrouter.ai/keys');
-      }
+    await dotenv.load(fileName: ".env");
+    // Verify API key was loaded
+    final apiKey = dotenv.env['GEMINI_API_KEY'];
+    if (apiKey == null || apiKey.isEmpty) {
+      debugPrint("Warning: GEMINI_API_KEY is not set in .env file");
     } else {
-      debugPrint('✗ dotenv is not initialized');
+      debugPrint("Gemini API key loaded successfully (${apiKey.substring(0, apiKey.length > 7 ? 7 : apiKey.length)}...)");
     }
   } catch (e) {
-    debugPrint('✗ Failed to load .env file: $e');
-    debugPrint('⚠ Make sure:');
-    debugPrint('  1. .env file exists in project root');
-    debugPrint('  2. .env is listed in pubspec.yaml assets');
-    debugPrint('  3. File contains: OPENROUTER_API_KEY=your_key');
-    debugPrint('  4. Get your free API key from: https://openrouter.ai/keys');
-    debugPrint('  5. You did a FULL RESTART (not hot reload)');
+    // .env file not found, but app can still run
+    // API calls will fail if API key is needed
+    debugPrint("Warning: .env file not found or could not be loaded: $e");
+    debugPrint("Please create a .env file in the project root with GEMINI_API_KEY=your_key");
   }
-
   runApp(const MainApp());
 }
 
