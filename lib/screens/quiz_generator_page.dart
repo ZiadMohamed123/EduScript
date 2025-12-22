@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/question.dart';
 import '../models/question_type.dart';
 import '../services/quiz_api_service.dart';
+import '../services/auth_service.dart';
 import '../widgets/question_card.dart';
 import '../widgets/mcq_widget.dart';
 import '../widgets/true_false_widget.dart';
@@ -9,14 +10,15 @@ import '../widgets/essay_widget.dart';
 import '../widgets/short_answer_widget.dart';
 
 class QuizGeneratorPage extends StatefulWidget {
-  /// Optional: document context for saving the quiz to the backend.
   final String? documentId;
   final String? documentTitle;
+  final String? initialNotes;
 
   const QuizGeneratorPage({
     super.key,
     this.documentId,
     this.documentTitle,
+    this.initialNotes,
   });
 
   @override
@@ -25,6 +27,7 @@ class QuizGeneratorPage extends StatefulWidget {
 
 class _QuizGeneratorPageState extends State<QuizGeneratorPage> {
   final TextEditingController _notesController = TextEditingController();
+  final TextEditingController _docIdController = TextEditingController();
   final QuizApiService _api = QuizApiService();
 
   bool _isLoading = false;
@@ -34,12 +37,27 @@ class _QuizGeneratorPageState extends State<QuizGeneratorPage> {
   int _currentIndex = 0;
   Map<String, dynamic>? _quizResults;
 
+  @override
+  void initState() {
+    super.initState();
+
+    final docId = widget.documentId;
+    if (docId != null && docId.trim().isNotEmpty) {
+      _docIdController.text = docId;
+    }
+
+    final initialNotes = widget.initialNotes;
+    if (initialNotes != null && initialNotes.trim().isNotEmpty) {
+      _notesController.text = initialNotes;
+    }
+  }
+
   Future<void> _generateQuiz() async {
     if (_notesController.text.isEmpty) return;
 
     setState(() {
       _isLoading = true;
-      _quizResults = null; // Reset results when generating new quiz
+      _quizResults = null;
     });
     try {
       _questions = await _api.generateQuiz(_notesController.text);
@@ -59,7 +77,6 @@ class _QuizGeneratorPageState extends State<QuizGeneratorPage> {
   void _updateAnswer(Question question, String answer) {
     setState(() {
       question.userAnswer = answer;
-      // For MCQ, also store the selected index
       if (question.type == QuestionType.mcq) {
         final index = question.options.indexOf(answer);
         if (index >= 0) {
@@ -69,8 +86,15 @@ class _QuizGeneratorPageState extends State<QuizGeneratorPage> {
     });
   }
 
+  String get _effectiveDocumentId {
+    final externalId = widget.documentId;
+    if (externalId != null && externalId.trim().isNotEmpty) {
+      return externalId.trim();
+    }
+    return _docIdController.text.trim();
+  }
+
   Future<void> _submitQuiz() async {
-    // Check if all questions are answered
     final unansweredQuestions = _questions.where((q) => 
       q.userAnswer == null || q.userAnswer!.isEmpty
     ).toList();
@@ -108,20 +132,29 @@ class _QuizGeneratorPageState extends State<QuizGeneratorPage> {
     if (_questions.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Generate a quiz before saving.')),
+      );
+      return;
+    }
+
+    final documentId = _effectiveDocumentId;
+    if (documentId.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Generate a quiz before saving.'),
+          content: Text('No document selected. Open the quiz generator from a document to save it.'),
+          backgroundColor: Colors.orange,
         ),
       );
       return;
     }
 
-    if (widget.documentId == null || widget.documentId!.isEmpty) {
+    final authToken = await AuthService().getAuthToken();
+    if (authToken == null || authToken.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'No document selected. Open the quiz generator from a document to save it.',
-          ),
+          content: Text('Please log in before saving quizzes to the database.'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -132,23 +165,20 @@ class _QuizGeneratorPageState extends State<QuizGeneratorPage> {
     try {
       final name = widget.documentTitle ?? 'Generated Quiz';
       await _api.saveQuizToDatabase(
-        documentId: widget.documentId!,
+        documentId: documentId,
         name: name,
         questions: _questions,
+        authToken: authToken,
       );
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Quiz saved to database successfully.'),
-        ),
+        const SnackBar(content: Text('Quiz saved to database successfully.')),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error saving quiz: $e'),
-        ),
+        SnackBar(content: Text('Error saving quiz: $e')),
       );
     } finally {
       if (mounted) {
@@ -236,10 +266,7 @@ class _QuizGeneratorPageState extends State<QuizGeneratorPage> {
                   children: [
                     Text(
                       '$correctAnswers / $totalQuestions',
-                      style: const TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
                     ),
                     const Text('Correct'),
                   ],
@@ -248,7 +275,6 @@ class _QuizGeneratorPageState extends State<QuizGeneratorPage> {
             ),
             const SizedBox(height: 20),
             const Divider(),
-            const SizedBox(height: 10),
             const Text(
               'Feedback:',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
@@ -275,7 +301,7 @@ class _QuizGeneratorPageState extends State<QuizGeneratorPage> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'Q${questionId}: ${question.text}',
+                            'Q$questionId: ${question.text}',
                             style: const TextStyle(fontWeight: FontWeight.w500),
                           ),
                         ),
@@ -285,10 +311,7 @@ class _QuizGeneratorPageState extends State<QuizGeneratorPage> {
                       padding: const EdgeInsets.only(left: 28, top: 4),
                       child: Text(
                         feedbackText,
-                        style: TextStyle(
-                          color: Colors.grey[700],
-                          fontSize: 14,
-                        ),
+                        style: TextStyle(color: Colors.grey[700], fontSize: 14),
                       ),
                     ),
                   ],
@@ -304,10 +327,7 @@ class _QuizGeneratorPageState extends State<QuizGeneratorPage> {
               ),
               child: const Text(
                 'Take Another Quiz',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
               ),
             ),
           ],
@@ -318,8 +338,10 @@ class _QuizGeneratorPageState extends State<QuizGeneratorPage> {
 
   @override
   Widget build(BuildContext context) {
+    final hasExternalDocumentId = widget.documentId?.trim().isNotEmpty == true;
+
     return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 255, 255, 255),
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(
           widget.documentTitle != null
@@ -331,43 +353,41 @@ class _QuizGeneratorPageState extends State<QuizGeneratorPage> {
       body: Column(
         children: [
           const SizedBox(height: 16),
+          if (!hasExternalDocumentId)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: TextField(
+                controller: _docIdController,
+                decoration: const InputDecoration(
+                  labelText: 'Document ID',
+                  hintText: 'Enter the document ID to attach this quiz',
+                ),
+              ),
+            ),
 
           // Input Notes
-Padding(
-  padding: const EdgeInsets.all(16),
-  child: TextField(
-    controller: _notesController,
-    maxLines: 5,
-    decoration: InputDecoration(
-      hintText: "Paste your notes here...",
-
-      // Normal (not focused) border
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(
-          color: Color(0xFF0066CC),   // ← Change this to your color
-          width: 1.5,
-        ),
-      ),
-
-      // Border when the user taps the field
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(
-          color: Colors.blueAccent,   // ← Focus color
-          width: 2,
-        ),
-      ),
-
-      // Optional: border when error occurs
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Colors.red),
-      ),
-    ),
-  ),
-),
-
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: TextField(
+              controller: _notesController,
+              maxLines: 5,
+              decoration: InputDecoration(
+                hintText: "Paste your notes here...",
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF0066CC), width: 1.5),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Colors.blueAccent, width: 2),
+                ),
+                errorBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Colors.red),
+                ),
+              ),
+            ),
+          ),
 
           // Generate Button
           ElevatedButton(
@@ -376,11 +396,7 @@ Padding(
             child: _isLoading
                 ? const CircularProgressIndicator(color: Colors.white)
                 : const Text("Generate Quiz",
-                style: TextStyle(
-                  color: Colors.black,
-                  fontWeight: FontWeight.bold,
-                ),
-                ),
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
 
           const SizedBox(height: 16),
@@ -418,48 +434,40 @@ Padding(
               ],
             ),
             const SizedBox(height: 8),
-            ElevatedButton(
-              onPressed: _isSubmitting ? null : _submitQuiz,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0066CC),
-                minimumSize: const Size(double.infinity, 48),
-              ),
-              child: _isSubmitting
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text(
-                      "Submit Quiz",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                children: [
+                  ElevatedButton(
+                    onPressed: _isSubmitting ? null : _submitQuiz,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0066CC),
+                      minimumSize: const Size(double.infinity, 48),
                     ),
-            ),
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
-              onPressed: _isSavingQuiz ? null : _saveQuizToDatabase,
-              icon: _isSavingQuiz
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.save),
-              label: const Text(
-                "Save Quiz to Library",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF0066CC),
-                side: const BorderSide(color: Color(0xFF0066CC)),
-                minimumSize: const Size(double.infinity, 48),
+                    child: _isSubmitting
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Text(
+                            "Submit Quiz",
+                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                          ),
+                  ),
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: _isSavingQuiz ? null : _saveQuizToDatabase,
+                    icon: _isSavingQuiz
+                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.save),
+                    label: const Text("Save Quiz to Library"),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF0066CC),
+                      side: const BorderSide(color: Color(0xFF0066CC)),
+                      minimumSize: const Size(double.infinity, 48),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
-
           const SizedBox(height: 16),
         ],
       ),

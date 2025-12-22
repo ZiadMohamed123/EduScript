@@ -2,6 +2,33 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:developer' as developer;
 
 class ApiConfig {
+  /// Base URL for the backend API
+  /// For web development, make sure your backend server is running and accessible
+  /// If using CORS, ensure your backend allows requests from your Flutter web origin
+  static String get backendBaseUrl {
+    // For web development - use the full URL including http://
+    const defaultUrl = 'http://localhost:5000';
+    
+    if (!dotenv.isInitialized) {
+      developer.log('Environment variables not loaded, using default backend URL: $defaultUrl');
+      return defaultUrl;
+    }
+    
+    // Try to get URL from environment variables
+    final url = dotenv.env['BACKEND_URL']?.trim() ?? 
+               dotenv.env['BACKEND_BASE_URL']?.trim();
+    
+    if (url != null && url.isNotEmpty) {
+      // Ensure URL has http:// or https://
+      if (!url.startsWith('http')) {
+        return 'http://$url';
+      }
+      return url;
+    }
+    
+    return defaultUrl;
+  }
+
   /// Get OpenRouter API key from environment variables
   /// Get your free API key from: https://openrouter.ai/keys
   /// Make sure to load .env file in main.dart before using this
@@ -56,28 +83,4 @@ class ApiConfig {
     return dotenv.env['OPENAI_API_KEY'];
   }
 
-  /// Backend base URL for your own API
-  ///
-  /// If BACKEND_BASE_URL is set in .env, it will be used.
-  /// Otherwise, defaults to http://localhost:5000 (or http://10.0.2.2:5000 for Android emulator)
-  ///
-  /// Example .env entry:
-  /// BACKEND_BASE_URL=http://localhost:5000
-  static String get backendBaseUrl {
-    try {
-      if (dotenv.isInitialized) {
-        final envUrl = dotenv.env['BACKEND_BASE_URL']?.trim();
-        if (envUrl != null && envUrl.isNotEmpty) {
-          return envUrl;
-        }
-      }
-    } catch (e) {
-      // dotenv not initialized, use default
-    }
-
-    // Default fallback - you can override in .env
-    // For Android emulator, use http://10.0.2.2:5000
-    // For web/physical device, use your computer's IP or set BACKEND_BASE_URL in .env
-    return 'http://10.0.2.2:5000';
-  }
 }
