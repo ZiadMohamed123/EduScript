@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 
+import 'package:quiz_generator/screens/scanner_page.dart';
 import 'screens/splash_screen.dart';
 import 'screens/home_page.dart';
 import 'screens/settings_page.dart';
@@ -22,6 +23,27 @@ Future<void> main() async {
   // ⚠️ Keep startup VERY light
   await dotenv.load(fileName: 'assets/.env');
 
+import 'utils/app_theme.dart';
+import 'utils/theme_controller.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await dotenv.load(fileName: ".env");
+    // Verify API key was loaded
+    final apiKey = dotenv.env['GEMINI_API_KEY'];
+    if (apiKey == null || apiKey.isEmpty) {
+      debugPrint("Warning: GEMINI_API_KEY is not set in .env file");
+    } else {
+      debugPrint("Gemini API key loaded successfully (${apiKey.substring(0, apiKey.length > 7 ? 7 : apiKey.length)}...)");
+    }
+  } catch (e) {
+    // .env file not found, but app can still run
+    // API calls will fail if API key is needed
+    debugPrint("Warning: .env file not found or could not be loaded: $e");
+    debugPrint("Please create a .env file in the project root with GEMINI_API_KEY=your_key");
+  }
   runApp(const MainApp());
 }
 
@@ -59,6 +81,7 @@ class MainApp extends StatelessWidget {
               }
               return const SummaryPage();
             },
+            '/scanner':(context) => const ScannerPage(),
           },
         );
       },
