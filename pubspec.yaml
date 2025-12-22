@@ -10,11 +10,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  http: ^1.1.0
-  flutter_dotenv: ^5.1.0
-  shared_preferences: ^2.2.2
-
   cupertino_icons: ^1.0.6
+  collection: ^1.17.2
+  provider: ^6.0.5
 
   # HTTP requests
   http: ^1.2.1
@@ -22,11 +20,8 @@ dependencies:
   # Environment variables (.env)
   flutter_dotenv: ^5.1.0
 
-  # JSON model support (if you need)
-  collection: ^1.17.2
-
-  # State or utility (optional)
-  provider: ^6.0.5
+  # Shared preferences
+  shared_preferences: ^2.2.2
 
 dev_dependencies:
   flutter_test:
@@ -34,9 +29,13 @@ dev_dependencies:
   flutter_lints: ^3.0.0
 
 flutter:
-
   uses-material-design: true
 
   # Assets
   assets:
     - .env
+
+# Override to ensure http and dotenv versions are used correctly
+dependency_overrides:
+  http: ^1.2.1
+  flutter_dotenv: ^5.1.0
