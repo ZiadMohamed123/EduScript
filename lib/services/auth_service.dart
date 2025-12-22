@@ -1,9 +1,9 @@
 import 'dart:convert';
 
-import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../config/api_config.dart';
+import '../utils/http_client.dart';
+import 'user_service.dart';
 
 /// User model for authentication
 class User {
@@ -30,39 +30,59 @@ class User {
 
 /// Authentication Service
 /// Handles login, signup, logout, and session management
-/// Uses backend API + SharedPreferences for local storage
+/// Only stores JWT token locally, fetches user data from API
 class AuthService {
   static const String _keyIsLoggedIn = 'is_logged_in';
-  static const String _keyUserId = 'user_id';
-  static const String _keyUserName = 'user_name';
-  static const String _keyUserEmail = 'user_email';
   static const String _keyAuthToken = 'auth_token';
 
   static final AuthService _instance = AuthService._internal();
   factory AuthService() => _instance;
   AuthService._internal();
 
-  /// Check if user is currently logged in
+  final UserService _userService = UserService();
+
+  /// Check if user is currently logged in (has valid JWT token)
   Future<bool> isLoggedIn() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_keyIsLoggedIn) ?? false;
+    final isLoggedIn = prefs.getBool(_keyIsLoggedIn) ?? false;
+    if (!isLoggedIn) return false;
+
+    // Verify token is still valid by checking if we can fetch user data
+    final token = await getAuthToken();
+    if (token == null || token.isEmpty) {
+      return false;
+    }
+
+    // Optionally verify token is valid by making a lightweight API call
+    // For now, just check if token exists
+    return true;
   }
 
-  /// Get current user
+  /// Get current user from API using JWT token
   Future<User?> getCurrentUser() async {
     final prefs = await SharedPreferences.getInstance();
     final isLoggedIn = prefs.getBool(_keyIsLoggedIn) ?? false;
     if (!isLoggedIn) return null;
 
-    final userId = prefs.getString(_keyUserId);
-    final userName = prefs.getString(_keyUserName);
-    final userEmail = prefs.getString(_keyUserEmail);
-
-    if (userId == null || userName == null || userEmail == null) {
+    final token = await getAuthToken();
+    if (token == null || token.isEmpty) {
       return null;
     }
 
-    return User(id: userId, name: userName, email: userEmail);
+    try {
+      // Fetch user data from API using JWT token
+      final profileData = await _userService.getUserProfile();
+      final userData = profileData['user'] as Map<String, dynamic>?;
+      
+      if (userData != null) {
+        return User.fromJson(userData);
+      }
+      return null;
+    } catch (e) {
+      // If API call fails (e.g., token expired), clear login state
+      await logout();
+      return null;
+    }
   }
 
   /// Get stored auth token (JWT) if available
@@ -96,14 +116,11 @@ class AuthService {
       );
     }
 
-    final prefs = await SharedPreferences.getInstance();
-
-    final uri = Uri.parse('${ApiConfig.backendBaseUrl}/auth/signup');
     try {
-      final response = await http.post(
-        uri,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'email': email, 'password': password, 'name': name}),
+      final response = await HttpClient.post(
+        '/auth/signup',
+        body: {'email': email, 'password': password, 'name': name},
+        includeAuth: false, // Signup endpoint doesn't need auth
       );
 
       if (response.statusCode == 201) {
@@ -111,12 +128,9 @@ class AuthService {
         final userJson = data['user'] as Map<String, dynamic>;
         final user = User.fromJson(userJson);
 
-        // Note: signup endpoint does not return token in docs,
-        // so we just mark user as created and logged in locally.
-        await prefs.setBool(_keyIsLoggedIn, true);
-        await prefs.setString(_keyUserId, user.id);
-        await prefs.setString(_keyUserName, user.name);
-        await prefs.setString(_keyUserEmail, user.email);
+        // Note: signup endpoint does not return token
+        // User needs to login after signup to get JWT token
+        // Don't mark as logged in - user must login separately
 
         return AuthResult(
           success: true,
@@ -166,12 +180,11 @@ class AuthService {
 
     final prefs = await SharedPreferences.getInstance();
 
-    final uri = Uri.parse('${ApiConfig.backendBaseUrl}/auth/login');
     try {
-      final response = await http.post(
-        uri,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'email': email, 'password': password}),
+      final response = await HttpClient.post(
+        '/auth/login',
+        body: {'email': email, 'password': password},
+        includeAuth: false, // Login endpoint doesn't need auth
       );
 
       if (response.statusCode == 200) {
@@ -180,10 +193,9 @@ class AuthService {
         final userJson = data['user'] as Map<String, dynamic>;
         final user = User.fromJson(userJson);
 
+        // Only store JWT token, not user details
+        // User data will be fetched from API when needed
         await prefs.setBool(_keyIsLoggedIn, true);
-        await prefs.setString(_keyUserId, user.id);
-        await prefs.setString(_keyUserName, user.name);
-        await prefs.setString(_keyUserEmail, user.email);
         if (token != null) {
           await prefs.setString(_keyAuthToken, token);
         }
@@ -218,9 +230,6 @@ class AuthService {
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_keyIsLoggedIn, false);
-    await prefs.remove(_keyUserId);
-    await prefs.remove(_keyUserName);
-    await prefs.remove(_keyUserEmail);
     await prefs.remove(_keyAuthToken);
   }
 

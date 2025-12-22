@@ -20,7 +20,12 @@ class Document {
 }
 
 class DocumentsListPage extends StatefulWidget {
-  const DocumentsListPage({super.key});
+  final bool showRecentsOnly;
+
+  const DocumentsListPage({
+    super.key,
+    this.showRecentsOnly = false,
+  });
 
   @override
   State<DocumentsListPage> createState() => _DocumentsListPageState();
@@ -32,16 +37,46 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
   String _searchQuery = '';
   String _sortBy = 'date'; // 'date' or 'name'
 
+  bool _isLoading = false;
+
   @override
   void initState() {
     super.initState();
     _loadDocuments();
   }
 
-  void _loadDocuments() {
+  Future<void> _loadDocuments() async {
     setState(() {
-      _documents = _documentService.getAllDocuments();
+      _isLoading = true;
     });
+
+    try {
+      List<Document> documents;
+      if (widget.showRecentsOnly) {
+        documents = await _documentService.getRecentDocuments(limit: 10);
+      } else {
+        documents = await _documentService.getAllDocuments();
+      }
+
+      if (mounted) {
+        setState(() {
+          _documents = documents;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load documents: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -61,7 +96,8 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Documents'),
+        title:
+            Text(widget.showRecentsOnly ? 'Recent Documents' : 'My Documents'),
         elevation: 0,
         actions: [
           PopupMenuButton<String>(
@@ -99,74 +135,119 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
       body: Column(
         children: [
           // Search Bar
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: 'Search documents...',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          setState(() {
-                            _searchQuery = '';
-                          });
-                        },
-                      )
-                    : null,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+          Builder(
+            builder: (context) {
+              final scheme = Theme.of(context).colorScheme;
+              final isDark = scheme.brightness == Brightness.dark;
+              return Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: TextField(
+                  onChanged: (value) {
+                    setState(() {
+                      _searchQuery = value;
+                    });
+                  },
+                  style: TextStyle(color: scheme.onSurface),
+                  decoration: InputDecoration(
+                    hintText: 'Search documents...',
+                    hintStyle: TextStyle(
+                        color: scheme.onSurfaceVariant.withOpacity(0.6)),
+                    prefixIcon: Icon(Icons.search, color: scheme.primary),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: Icon(Icons.clear,
+                                color: scheme.onSurfaceVariant),
+                            onPressed: () {
+                              setState(() {
+                                _searchQuery = '';
+                              });
+                            },
+                          )
+                        : null,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: scheme.outline),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: scheme.outline),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: scheme.primary, width: 2),
+                    ),
+                    filled: true,
+                    fillColor:
+                        scheme.surfaceVariant.withOpacity(isDark ? 0.3 : 0.7),
+                  ),
                 ),
-                filled: true,
-                fillColor: Colors.grey.shade100,
-              ),
-              onChanged: (value) {
-                setState(() {
-                  _searchQuery = value;
-                });
-              },
-            ),
+              );
+            },
           ),
 
           // Documents List
           Expanded(
-            child: filteredDocuments.isEmpty
-                ? _buildEmptyState()
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: filteredDocuments.length,
-                    itemBuilder: (context, index) {
-                      return _DocumentCard(
-                        document: filteredDocuments[index],
-                        onTap: () {
-                          _showDocumentOptions(
-                            context,
-                            filteredDocuments[index],
-                          );
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : filteredDocuments.isEmpty
+                    ? _buildEmptyState()
+                    : LayoutBuilder(
+                        builder: (context, constraints) {
+                          final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+                          final crossAxisCount = isLandscape 
+                              ? (constraints.maxWidth / 300).floor().clamp(2, 4)
+                              : 1;
+                          
+                          if (isLandscape && crossAxisCount > 1) {
+                            // Grid layout for landscape - improved spacing
+                            return GridView.builder(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: constraints.maxWidth > 800 ? 32 : 16,
+                                vertical: 16,
+                              ),
+                              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: crossAxisCount,
+                                crossAxisSpacing: constraints.maxWidth > 800 ? 24 : 16,
+                                mainAxisSpacing: constraints.maxWidth > 800 ? 24 : 16,
+                                childAspectRatio: constraints.maxWidth > 800 ? 1.3 : 1.2,
+                              ),
+                              itemCount: filteredDocuments.length,
+                              itemBuilder: (context, index) {
+                                return _DocumentCard(
+                                  document: filteredDocuments[index],
+                                  onTap: () {
+                                    _showDocumentOptions(
+                                        context, filteredDocuments[index]);
+                                  },
+                                  onDelete: () {
+                                    _deleteDocument(filteredDocuments[index]);
+                                  },
+                                );
+                              },
+                            );
+                          } else {
+                            // List layout for portrait
+                            return ListView.builder(
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              itemCount: filteredDocuments.length,
+                              itemBuilder: (context, index) {
+                                return _DocumentCard(
+                                  document: filteredDocuments[index],
+                                  onTap: () {
+                                    _showDocumentOptions(
+                                        context, filteredDocuments[index]);
+                                  },
+                                  onDelete: () {
+                                    _deleteDocument(filteredDocuments[index]);
+                                  },
+                                );
+                              },
+                            );
+                          }
                         },
-                        onDelete: () {
-                          _deleteDocument(filteredDocuments[index]);
-                        },
-                      );
-                    },
-                  ),
+                      ),
           ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.pop(context);
-          // Navigate to home page to scan new document
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Use the "Scan New Document" button on home page'),
-            ),
-          );
-        },
-        icon: const Icon(Icons.add),
-        label: const Text('New Scan'),
-        backgroundColor: AppColors.primary,
       ),
     );
   }
@@ -176,10 +257,13 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.folder_open, size: 80, color: Colors.grey.shade400),
+          Icon(Icons.document_scanner_outlined,
+              size: 80, color: Colors.grey.shade400),
           const SizedBox(height: 16),
           Text(
-            _searchQuery.isEmpty ? 'No documents yet' : 'No documents found',
+            _searchQuery.isEmpty
+                ? 'No scanned documents yet'
+                : 'No documents found',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -226,7 +310,7 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
                 Navigator.pop(context);
                 Navigator.pushNamed(
                   context,
-                  '/summary',
+                  '/document-summary',
                   arguments: document,
                 );
               },
@@ -273,13 +357,30 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () {
-              _documentService.deleteDocument(document.id);
-              _loadDocuments();
+            onPressed: () async {
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('${document.title} deleted')),
-              );
+              try {
+                await _documentService.deleteDocument(document.id);
+                await _loadDocuments();
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Document deleted successfully'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content:
+                          Text('Failed to delete document: ${e.toString()}'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
             },
             child: const Text('Delete', style: TextStyle(color: Colors.red)),
           ),
