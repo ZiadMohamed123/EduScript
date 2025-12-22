@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
+import '../services/document_service.dart';
 import 'quiz_generator_page.dart';
 
 class Document {
@@ -26,30 +27,22 @@ class DocumentsListPage extends StatefulWidget {
 }
 
 class _DocumentsListPageState extends State<DocumentsListPage> {
-  // Mock data - replace with actual data source later
-  List<Document> _documents = [
-    Document(
-      id: '1',
-      title: 'Math Lecture Notes',
-      dateCreated: DateTime.now().subtract(const Duration(days: 2)),
-      pageCount: 5,
-    ),
-    Document(
-      id: '2',
-      title: 'Physics Chapter 3',
-      dateCreated: DateTime.now().subtract(const Duration(days: 5)),
-      pageCount: 3,
-    ),
-    Document(
-      id: '3',
-      title: 'Chemistry Lab Report',
-      dateCreated: DateTime.now().subtract(const Duration(days: 7)),
-      pageCount: 8,
-    ),
-  ];
-
+  final DocumentService _documentService = DocumentService();
+  List<Document> _documents = [];
   String _searchQuery = '';
   String _sortBy = 'date'; // 'date' or 'name'
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDocuments();
+  }
+
+  void _loadDocuments() {
+    setState(() {
+      _documents = _documentService.getAllDocuments();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -231,8 +224,10 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
               title: const Text('View Summary'),
               onTap: () {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Summary feature coming soon!')),
+                Navigator.pushNamed(
+                  context,
+                  '/summary',
+                  arguments: document,
                 );
               },
             ),
@@ -249,16 +244,6 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
                       documentTitle: document.title,
                     ),
                   ),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.share),
-              title: const Text('Share'),
-              onTap: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Share feature coming soon!')),
                 );
               },
             ),
@@ -289,9 +274,8 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
           ),
           TextButton(
             onPressed: () {
-              setState(() {
-                _documents.removeWhere((doc) => doc.id == document.id);
-              });
+              _documentService.deleteDocument(document.id);
+              _loadDocuments();
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text('${document.title} deleted')),

@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'home_page.dart';
 import 'auth/login_page.dart';
 import '../utils/app_theme.dart';
+import '../utils/auth_controller.dart';
+import '../services/auth_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -108,6 +110,8 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _resolveNextPage() async {
+    // Initialize auth controller and check status
+    await AuthController().initialize();
     final isLoggedIn = await _checkAuthStatus();
     if (!mounted) return;
     setState(() {
@@ -116,9 +120,13 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<bool> _checkAuthStatus() async {
-    // TODO: Replace with real auth check (tokens/local storage/backend)
-    await Future.delayed(const Duration(milliseconds: 150));
-    return false;
+    // Small delay to ensure auth state is updated
+    await Future.delayed(const Duration(milliseconds: 200));
+    // Re-check auth status from service to ensure it's up to date
+    final authService = AuthService();
+    final isLoggedIn = await authService.isLoggedIn();
+    // The AuthController will be updated by the initialize() call above
+    return isLoggedIn;
   }
 
   Future<void> _startReveal() async {

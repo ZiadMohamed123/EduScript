@@ -10,6 +10,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  http: ^1.1.0
+  flutter_dotenv: ^5.1.0
+  shared_preferences: ^2.2.2
 
   cupertino_icons: ^1.0.6
 
@@ -34,6 +37,6 @@ flutter:
 
   uses-material-design: true
 
-  # VERY IMPORTANT: Load the .env file as an asset
+  # Assets
   assets:
     - .env
