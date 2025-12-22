@@ -191,21 +191,59 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
                 ? const Center(child: CircularProgressIndicator())
                 : filteredDocuments.isEmpty
                     ? _buildEmptyState()
-                    : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: filteredDocuments.length,
-                        itemBuilder: (context, index) {
-                          return _DocumentCard(
-                            document: filteredDocuments[index],
-                            onTap: () {
-                              // Show bottom sheet with options
-                              _showDocumentOptions(
-                                  context, filteredDocuments[index]);
-                            },
-                            onDelete: () {
-                              _deleteDocument(filteredDocuments[index]);
-                            },
-                          );
+                    : LayoutBuilder(
+                        builder: (context, constraints) {
+                          final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+                          final crossAxisCount = isLandscape 
+                              ? (constraints.maxWidth / 300).floor().clamp(2, 4)
+                              : 1;
+                          
+                          if (isLandscape && crossAxisCount > 1) {
+                            // Grid layout for landscape - improved spacing
+                            return GridView.builder(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: constraints.maxWidth > 800 ? 32 : 16,
+                                vertical: 16,
+                              ),
+                              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: crossAxisCount,
+                                crossAxisSpacing: constraints.maxWidth > 800 ? 24 : 16,
+                                mainAxisSpacing: constraints.maxWidth > 800 ? 24 : 16,
+                                childAspectRatio: constraints.maxWidth > 800 ? 1.3 : 1.2,
+                              ),
+                              itemCount: filteredDocuments.length,
+                              itemBuilder: (context, index) {
+                                return _DocumentCard(
+                                  document: filteredDocuments[index],
+                                  onTap: () {
+                                    _showDocumentOptions(
+                                        context, filteredDocuments[index]);
+                                  },
+                                  onDelete: () {
+                                    _deleteDocument(filteredDocuments[index]);
+                                  },
+                                );
+                              },
+                            );
+                          } else {
+                            // List layout for portrait
+                            return ListView.builder(
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              itemCount: filteredDocuments.length,
+                              itemBuilder: (context, index) {
+                                return _DocumentCard(
+                                  document: filteredDocuments[index],
+                                  onTap: () {
+                                    _showDocumentOptions(
+                                        context, filteredDocuments[index]);
+                                  },
+                                  onDelete: () {
+                                    _deleteDocument(filteredDocuments[index]);
+                                  },
+                                );
+                              },
+                            );
+                          }
                         },
                       ),
           ),

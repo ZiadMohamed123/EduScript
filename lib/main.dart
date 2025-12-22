@@ -4,7 +4,7 @@ import 'screens/splash_screen.dart';
 import 'screens/home_page.dart';
 import 'screens/settings_page.dart';
 import 'screens/edit_profile_page.dart';
-import 'screens/documents_list_page.dart';
+import 'screens/documents_list_page.dart' show Document, DocumentsListPage;
 import 'screens/quiz_generator_page.dart';
 import 'screens/summary_page.dart';
 import 'screens/document_summary_view.dart';
@@ -12,6 +12,7 @@ import 'screens/auth/login_page.dart';
 import 'screens/auth/signup_page.dart';
 import 'utils/app_theme.dart';
 import 'utils/theme_controller.dart';
+import 'utils/auth_guard.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -56,25 +57,29 @@ class MainApp extends StatelessWidget {
             '/': (context) => const SplashScreen(),
             '/login': (context) => const LoginPage(),
             '/signup': (context) => const SignUpPage(),
-            '/home': (context) => const HomePage(),
-            '/settings': (context) => const SettingsPage(),
-            '/edit-profile': (context) => const EditProfilePage(),
-            '/documents': (context) => const DocumentsListPage(),
-            '/quiz': (context) => const QuizGeneratorPage(),
+            '/home': (context) => const AuthGuard(child: HomePage()),
+            '/settings': (context) => const AuthGuard(child: SettingsPage()),
+            '/edit-profile': (context) =>
+                const AuthGuard(child: EditProfilePage()),
+            '/documents': (context) =>
+                const AuthGuard(child: DocumentsListPage()),
+            '/quiz': (context) => const AuthGuard(child: QuizGeneratorPage()),
             '/summary': (context) {
               final args = ModalRoute.of(context)?.settings.arguments;
               if (args is Document) {
-                return SummaryPage(document: args);
+                return AuthGuard(child: SummaryPage(document: args));
               }
-              return const SummaryPage();
+              return const AuthGuard(child: SummaryPage());
             },
             '/document-summary': (context) {
               final args = ModalRoute.of(context)?.settings.arguments;
               if (args is Document) {
-                return DocumentSummaryView(document: args);
+                return AuthGuard(child: DocumentSummaryView(document: args));
               }
-              return const Scaffold(
-                body: Center(child: Text('No document provided')),
+              return const AuthGuard(
+                child: Scaffold(
+                  body: Center(child: Text('No document provided')),
+                ),
               );
             },
           },

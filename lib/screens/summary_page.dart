@@ -424,10 +424,18 @@ class _SummaryPageState extends State<SummaryPage> {
           ),
         ],
       ),
-      body: _showSummaryView && _generatedSummary != null
-          ? _buildSummaryPDFView()
-          : Column(
-              children: [
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+          final maxContentWidth = isLandscape ? 1000.0 : double.infinity;
+          
+          return Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: maxContentWidth),
+              child: _showSummaryView && _generatedSummary != null
+                  ? _buildSummaryPDFView()
+                  : Column(
+                      children: [
                 // Quick Actions Bar
                 if (_selectedDocument != null && !_showSummaryView)
                   Container(
@@ -552,6 +560,10 @@ class _SummaryPageState extends State<SummaryPage> {
                 ),
               ],
             ),
+            ),
+          );
+        },
+      ),
     );
   }
 

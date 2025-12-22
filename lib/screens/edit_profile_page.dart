@@ -256,74 +256,93 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+    final maxContentWidth = isLandscape ? 700.0 : double.infinity;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Edit Profile'),
         elevation: 0,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Profile Picture Section
-              Builder(
-                builder: (context) {
-                  final scheme = Theme.of(context).colorScheme;
-                  final isDark = scheme.brightness == Brightness.dark;
-                  return Center(
-                    child: Column(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: maxContentWidth),
+          child: SingleChildScrollView(
+            padding: EdgeInsets.symmetric(
+              horizontal: isLandscape ? 40 : 20,
+              vertical: isLandscape ? 20 : 20,
+            ),
+            child: Form(
+              key: _formKey,
+              child: isLandscape
+                  ? Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Stack(
-                          children: [
-                            CircleAvatar(
-                              radius: 60,
-                              backgroundColor: isDark
-                                  ? scheme.surfaceVariant.withOpacity(0.5)
-                                  : AppColors.primary.withOpacity(0.1),
-                              backgroundImage: _getProfileImage(),
-                              child: _selectedImage == null && _currentProfilePicture == null
-                                  ? Icon(
-                                      Icons.person,
-                                      size: 60,
-                                      color: isDark
-                                          ? scheme.onSurfaceVariant
-                                          : AppColors.primary,
-                                    )
-                                  : null,
-                            ),
-                            Positioned(
-                              bottom: 0,
-                              right: 0,
-                              child: CircleAvatar(
-                                radius: 20,
-                                backgroundColor: AppColors.primary,
-                                child: IconButton(
-                                  icon: const Icon(Icons.camera_alt, size: 20, color: Colors.white),
-                                  onPressed: _showImageSourceDialog,
-                                  padding: EdgeInsets.zero,
+                        // Left side - Profile Picture
+                        Expanded(
+                          flex: 1,
+                          child: Builder(
+                            builder: (context) {
+                              final scheme = Theme.of(context).colorScheme;
+                              final isDark = scheme.brightness == Brightness.dark;
+                              return Center(
+                                child: Column(
+                                  children: [
+                                    Stack(
+                                      children: [
+                                        CircleAvatar(
+                                          radius: 80,
+                                          backgroundColor: isDark
+                                              ? scheme.surfaceVariant.withOpacity(0.5)
+                                              : AppColors.primary.withOpacity(0.1),
+                                          backgroundImage: _getProfileImage(),
+                                          child: _selectedImage == null && _currentProfilePicture == null
+                                              ? Icon(
+                                                  Icons.person,
+                                                  size: 80,
+                                                  color: isDark
+                                                      ? scheme.onSurfaceVariant
+                                                      : AppColors.primary,
+                                                )
+                                              : null,
+                                        ),
+                                        Positioned(
+                                          bottom: 0,
+                                          right: 0,
+                                          child: CircleAvatar(
+                                            radius: 24,
+                                            backgroundColor: AppColors.primary,
+                                            child: IconButton(
+                                              icon: const Icon(Icons.camera_alt, size: 22, color: Colors.white),
+                                              onPressed: _showImageSourceDialog,
+                                              padding: EdgeInsets.zero,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 12),
+                                    TextButton.icon(
+                                      onPressed: _showImageSourceDialog,
+                                      icon: Icon(Icons.edit, color: scheme.primary),
+                                      label: Text(
+                                        'Change Photo',
+                                        style: TextStyle(color: scheme.primary),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        TextButton.icon(
-                          onPressed: _showImageSourceDialog,
-                          icon: Icon(Icons.edit, color: scheme.primary),
-                          label: Text(
-                            'Change Photo',
-                            style: TextStyle(color: scheme.primary),
+                              );
+                            },
                           ),
                         ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 32),
+                        const SizedBox(width: 40),
+                        // Right side - Form Fields
+                        Expanded(
+                          flex: 2,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
 
               // Name Field
               Builder(
@@ -366,78 +385,292 @@ class _EditProfilePageState extends State<EditProfilePage> {
               ),
               const SizedBox(height: 20),
 
-              // Email Field
-              Builder(
-                builder: (context) {
-                  final scheme = Theme.of(context).colorScheme;
-                  final isDark = scheme.brightness == Brightness.dark;
-                  return TextFormField(
-                    controller: _emailController,
-                    style: TextStyle(color: scheme.onSurface),
-                    decoration: InputDecoration(
-                      labelText: 'Email',
-                      hintText: 'Enter your email',
-                      prefixIcon: Icon(Icons.email, color: scheme.primary),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: scheme.outline),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: scheme.outline),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: scheme.primary, width: 2),
-                      ),
-                      filled: true,
-                      fillColor: scheme.surfaceVariant.withOpacity(isDark ? 0.3 : 0.7),
-                      labelStyle: TextStyle(color: scheme.onSurfaceVariant),
-                      hintStyle: TextStyle(color: scheme.onSurfaceVariant.withOpacity(0.6)),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Please enter your email';
-                      }
-                      if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value.trim())) {
-                        return 'Please enter a valid email address';
-                      }
-                      return null;
-                    },
-                    keyboardType: TextInputType.emailAddress,
-                    textInputAction: TextInputAction.done,
-                  );
-                },
-              ),
-              const SizedBox(height: 32),
-
-              // Save Button
-              ElevatedButton(
-                onPressed: _isLoading || !_hasChanges ? null : _saveProfile,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: _isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              // Name Field
+                              Builder(
+                                builder: (context) {
+                                  final scheme = Theme.of(context).colorScheme;
+                                  final isDark = scheme.brightness == Brightness.dark;
+                                  return TextFormField(
+                                    controller: _nameController,
+                                    style: TextStyle(color: scheme.onSurface),
+                                    decoration: InputDecoration(
+                                      labelText: 'Name',
+                                      hintText: 'Enter your name',
+                                      prefixIcon: Icon(Icons.person, color: scheme.primary),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        borderSide: BorderSide(color: scheme.outline),
+                                      ),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        borderSide: BorderSide(color: scheme.outline),
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        borderSide: BorderSide(color: scheme.primary, width: 2),
+                                      ),
+                                      filled: true,
+                                      fillColor: scheme.surfaceVariant.withOpacity(isDark ? 0.3 : 0.7),
+                                      labelStyle: TextStyle(color: scheme.onSurfaceVariant),
+                                      hintStyle: TextStyle(color: scheme.onSurfaceVariant.withOpacity(0.6)),
+                                    ),
+                                    validator: (value) {
+                                      if (value == null || value.trim().isEmpty) {
+                                        return 'Please enter your name';
+                                      }
+                                      return null;
+                                    },
+                                    textCapitalization: TextCapitalization.words,
+                                  );
+                                },
+                              ),
+                              const SizedBox(height: 20),
+                              // Email Field
+                              Builder(
+                                builder: (context) {
+                                  final scheme = Theme.of(context).colorScheme;
+                                  final isDark = scheme.brightness == Brightness.dark;
+                                  return TextFormField(
+                                    controller: _emailController,
+                                    style: TextStyle(color: scheme.onSurface),
+                                    decoration: InputDecoration(
+                                      labelText: 'Email',
+                                      hintText: 'Enter your email',
+                                      prefixIcon: Icon(Icons.email, color: scheme.primary),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        borderSide: BorderSide(color: scheme.outline),
+                                      ),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        borderSide: BorderSide(color: scheme.outline),
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        borderSide: BorderSide(color: scheme.primary, width: 2),
+                                      ),
+                                      filled: true,
+                                      fillColor: scheme.surfaceVariant.withOpacity(isDark ? 0.3 : 0.7),
+                                      labelStyle: TextStyle(color: scheme.onSurfaceVariant),
+                                      hintStyle: TextStyle(color: scheme.onSurfaceVariant.withOpacity(0.6)),
+                                    ),
+                                    validator: (value) {
+                                      if (value == null || value.trim().isEmpty) {
+                                        return 'Please enter your email';
+                                      }
+                                      if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value.trim())) {
+                                        return 'Please enter a valid email address';
+                                      }
+                                      return null;
+                                    },
+                                    keyboardType: TextInputType.emailAddress,
+                                    textInputAction: TextInputAction.done,
+                                  );
+                                },
+                              ),
+                              const SizedBox(height: 24),
+                              // Save Button
+                              ElevatedButton(
+                                onPressed: _isLoading || !_hasChanges ? null : _saveProfile,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primary,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: _isLoading
+                                    ? const SizedBox(
+                                        height: 20,
+                                        width: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                        ),
+                                      )
+                                    : const Text(
+                                        'Save Changes',
+                                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                      ),
+                              ),
+                            ],
+                          ),
                         ),
-                      )
-                    : const Text(
-                        'Save Changes',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
-              ),
-            ],
-          ),
+                      ],
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Profile Picture Section
+                        Builder(
+                          builder: (context) {
+                            final scheme = Theme.of(context).colorScheme;
+                            final isDark = scheme.brightness == Brightness.dark;
+                            return Center(
+                              child: Column(
+                                children: [
+                                  Stack(
+                                    children: [
+                                      CircleAvatar(
+                                        radius: 60,
+                                        backgroundColor: isDark
+                                            ? scheme.surfaceVariant.withOpacity(0.5)
+                                            : AppColors.primary.withOpacity(0.1),
+                                        backgroundImage: _getProfileImage(),
+                                        child: _selectedImage == null && _currentProfilePicture == null
+                                            ? Icon(
+                                                Icons.person,
+                                                size: 60,
+                                                color: isDark
+                                                    ? scheme.onSurfaceVariant
+                                                    : AppColors.primary,
+                                              )
+                                            : null,
+                                      ),
+                                      Positioned(
+                                        bottom: 0,
+                                        right: 0,
+                                        child: CircleAvatar(
+                                          radius: 20,
+                                          backgroundColor: AppColors.primary,
+                                          child: IconButton(
+                                            icon: const Icon(Icons.camera_alt, size: 20, color: Colors.white),
+                                            onPressed: _showImageSourceDialog,
+                                            padding: EdgeInsets.zero,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  TextButton.icon(
+                                    onPressed: _showImageSourceDialog,
+                                    icon: Icon(Icons.edit, color: scheme.primary),
+                                    label: Text(
+                                      'Change Photo',
+                                      style: TextStyle(color: scheme.primary),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 32),
+                        // Name Field
+                        Builder(
+                          builder: (context) {
+                            final scheme = Theme.of(context).colorScheme;
+                            final isDark = scheme.brightness == Brightness.dark;
+                            return TextFormField(
+                              controller: _nameController,
+                              style: TextStyle(color: scheme.onSurface),
+                              decoration: InputDecoration(
+                                labelText: 'Name',
+                                hintText: 'Enter your name',
+                                prefixIcon: Icon(Icons.person, color: scheme.primary),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(color: scheme.outline),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(color: scheme.outline),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(color: scheme.primary, width: 2),
+                                ),
+                                filled: true,
+                                fillColor: scheme.surfaceVariant.withOpacity(isDark ? 0.3 : 0.7),
+                                labelStyle: TextStyle(color: scheme.onSurfaceVariant),
+                                hintStyle: TextStyle(color: scheme.onSurfaceVariant.withOpacity(0.6)),
+                              ),
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return 'Please enter your name';
+                                }
+                                return null;
+                              },
+                              textCapitalization: TextCapitalization.words,
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 20),
+                        // Email Field
+                        Builder(
+                          builder: (context) {
+                            final scheme = Theme.of(context).colorScheme;
+                            final isDark = scheme.brightness == Brightness.dark;
+                            return TextFormField(
+                              controller: _emailController,
+                              style: TextStyle(color: scheme.onSurface),
+                              decoration: InputDecoration(
+                                labelText: 'Email',
+                                hintText: 'Enter your email',
+                                prefixIcon: Icon(Icons.email, color: scheme.primary),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(color: scheme.outline),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(color: scheme.outline),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(color: scheme.primary, width: 2),
+                                ),
+                                filled: true,
+                                fillColor: scheme.surfaceVariant.withOpacity(isDark ? 0.3 : 0.7),
+                                labelStyle: TextStyle(color: scheme.onSurfaceVariant),
+                                hintStyle: TextStyle(color: scheme.onSurfaceVariant.withOpacity(0.6)),
+                              ),
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return 'Please enter your email';
+                                }
+                                if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value.trim())) {
+                                  return 'Please enter a valid email address';
+                                }
+                                return null;
+                              },
+                              keyboardType: TextInputType.emailAddress,
+                              textInputAction: TextInputAction.done,
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 32),
+                        // Save Button
+                        ElevatedButton(
+                          onPressed: _isLoading || !_hasChanges ? null : _saveProfile,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: _isLoading
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  ),
+                                )
+                              : const Text(
+                                  'Save Changes',
+                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                ),
+                        ),
+                      ],
+                    ),
+        ),
+      ),
         ),
       ),
     );
