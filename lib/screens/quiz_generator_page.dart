@@ -13,12 +13,16 @@ class QuizGeneratorPage extends StatefulWidget {
   final String? documentId;
   final String? documentTitle;
   final String? initialNotes;
+  final String? extractedText;
+  final bool autoGenerate;
 
   const QuizGeneratorPage({
     super.key,
     this.documentId,
     this.documentTitle,
     this.initialNotes,
+    this.extractedText,
+    this.autoGenerate = false,
   });
 
   @override
@@ -46,9 +50,17 @@ class _QuizGeneratorPageState extends State<QuizGeneratorPage> {
       _docIdController.text = docId;
     }
 
-    final initialNotes = widget.initialNotes;
-    if (initialNotes != null && initialNotes.trim().isNotEmpty) {
-      _notesController.text = initialNotes;
+    // Use extractedText if provided, otherwise use initialNotes
+    final textToUse = widget.extractedText ?? widget.initialNotes;
+    if (textToUse != null && textToUse.trim().isNotEmpty) {
+      _notesController.text = textToUse;
+      
+      // Auto-generate quiz if requested
+      if (widget.autoGenerate) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _generateQuiz();
+        });
+      }
     }
   }
 
@@ -173,7 +185,7 @@ class _QuizGeneratorPageState extends State<QuizGeneratorPage> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Quiz saved to database successfully.')),
+        const SnackBar(content: Text('Quiz Saved Successfully.')),
       );
     } catch (e) {
       if (!mounted) return;
@@ -319,6 +331,18 @@ class _QuizGeneratorPageState extends State<QuizGeneratorPage> {
               );
             }).toList(),
             const SizedBox(height: 16),
+            // Save Quiz to Library Button
+            OutlinedButton.icon(
+              onPressed: _isSavingQuiz ? null : _saveQuizToDatabase,
+              label: const Text("Save Quiz"),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF0066CC),
+                side: const BorderSide(color: Color(0xFF0066CC)),
+                minimumSize: const Size(double.infinity, 48),
+              ),
+            ),
+            const SizedBox(height: 8),
+            // Take Another Quiz Button
             ElevatedButton(
               onPressed: _resetQuiz,
               style: ElevatedButton.styleFrom(
@@ -339,6 +363,7 @@ class _QuizGeneratorPageState extends State<QuizGeneratorPage> {
   @override
   Widget build(BuildContext context) {
     final hasExternalDocumentId = widget.documentId?.trim().isNotEmpty == true;
+    final hasExtractedText = widget.extractedText?.trim().isNotEmpty == true;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -353,6 +378,8 @@ class _QuizGeneratorPageState extends State<QuizGeneratorPage> {
       body: Column(
         children: [
           const SizedBox(height: 16),
+          
+          // Only show document ID field if no external document ID is provided
           if (!hasExternalDocumentId)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -365,53 +392,80 @@ class _QuizGeneratorPageState extends State<QuizGeneratorPage> {
               ),
             ),
 
-          // Input Notes
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: TextField(
-              controller: _notesController,
-              maxLines: 5,
-              decoration: InputDecoration(
-                hintText: "Paste your notes here...",
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFF0066CC), width: 1.5),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Colors.blueAccent, width: 2),
-                ),
-                errorBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Colors.red),
+          // Only show text field if no extracted text was provided
+          if (!hasExtractedText) ...[
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: TextField(
+                controller: _notesController,
+                maxLines: 5,
+                decoration: InputDecoration(
+                  hintText: "Paste your notes here...",
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF0066CC), width: 1.5),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Colors.blueAccent, width: 2),
+                  ),
+                  errorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Colors.red),
+                  ),
                 ),
               ),
             ),
-          ),
 
-          // Generate Button
-          ElevatedButton(
-            onPressed: _isLoading ? null : _generateQuiz,
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0066CC)),
-            child: _isLoading
-                ? const CircularProgressIndicator(color: Colors.white)
-                : const Text("Generate Quiz",
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          ),
+            // Generate Button - only show if no extracted text
+            ElevatedButton(
+              onPressed: _isLoading ? null : _generateQuiz,
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0066CC)),
+              child: _isLoading
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : const Text("Generate Quiz",
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
 
-          const SizedBox(height: 16),
+            const SizedBox(height: 16),
+          ],
+
+          // Loading indicator when auto-generating
+          if (_isLoading && hasExtractedText)
+            const Expanded(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text(
+                      'Generating quiz from document...',
+                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
+            ),
 
           // Question UI or Results
-          Expanded(
-            child: _quizResults != null
-                ? SingleChildScrollView(child: _buildResultsView())
-                : _questions.isEmpty
-                    ? const Center(child: Text("Enter your notes to generate quiz"))
-                    : QuestionCard(
-                        question: _questions[_currentIndex],
-                        child: _buildQuestionContent(_questions[_currentIndex]),
-                      ),
-          ),
+          if (!_isLoading || !hasExtractedText)
+            Expanded(
+              child: _quizResults != null
+                  ? SingleChildScrollView(child: _buildResultsView())
+                  : _questions.isEmpty
+                      ? Center(
+                          child: Text(
+                            hasExtractedText 
+                                ? "Generating quiz..."
+                                : "Enter your notes to generate quiz",
+                          ),
+                        )
+                      : QuestionCard(
+                          question: _questions[_currentIndex],
+                          child: _buildQuestionContent(_questions[_currentIndex]),
+                        ),
+            ),
 
           // Navigation, Submit, and Save Buttons
           if (_questions.isNotEmpty && _quizResults == null) ...[
@@ -436,35 +490,18 @@ class _QuizGeneratorPageState extends State<QuizGeneratorPage> {
             const SizedBox(height: 8),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Column(
-                children: [
-                  ElevatedButton(
-                    onPressed: _isSubmitting ? null : _submitQuiz,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0066CC),
-                      minimumSize: const Size(double.infinity, 48),
-                    ),
-                    child: _isSubmitting
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text(
-                            "Submit Quiz",
-                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                          ),
-                  ),
-                  const SizedBox(height: 8),
-                  OutlinedButton.icon(
-                    onPressed: _isSavingQuiz ? null : _saveQuizToDatabase,
-                    icon: _isSavingQuiz
-                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.save),
-                    label: const Text("Save Quiz to Library"),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF0066CC),
-                      side: const BorderSide(color: Color(0xFF0066CC)),
-                      minimumSize: const Size(double.infinity, 48),
-                    ),
-                  ),
-                ],
+              child: ElevatedButton(
+                onPressed: _isSubmitting ? null : _submitQuiz,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0066CC),
+                  minimumSize: const Size(double.infinity, 48),
+                ),
+                child: _isSubmitting
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text(
+                        "Submit Quiz",
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
               ),
             ),
           ],

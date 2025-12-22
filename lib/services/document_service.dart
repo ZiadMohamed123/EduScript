@@ -13,6 +13,9 @@ class DocumentService {
   DateTime? _lastFetchTime;
   static const Duration _cacheDuration = Duration(minutes: 5);
 
+  // Cache for extracted text to avoid multiple API calls
+  final Map<String, String> _extractedTextCache = {};
+
   /// Get all documents from API
   Future<List<Document>> getAllDocuments() async {
     // Return cached data if still fresh
@@ -33,8 +36,16 @@ class DocumentService {
           // API returns upload_date from the query, but may also have created_at
           final dateString = doc['upload_date'] as String? ?? 
                             doc['created_at'] as String?;
+          
+          // Cache the extracted text if available
+          final docId = doc['document_id'] as String? ?? '';
+          final extractedText = doc['extracted_text'] as String?;
+          if (docId.isNotEmpty && extractedText != null && extractedText.isNotEmpty) {
+            _extractedTextCache[docId] = extractedText;
+          }
+          
           return Document(
-            id: doc['document_id'] as String? ?? '',
+            id: docId,
             title: doc['name'] as String? ?? 'Untitled Document',
             dateCreated: _parseDate(dateString),
             pageCount: (doc['no_of_pages'] as num?)?.toInt() ?? 1,
@@ -75,6 +86,57 @@ class DocumentService {
     }
   }
 
+  /// Get extracted text for a specific document
+  /// This method fetches all documents metadata which includes extracted_text
+  /// and caches it for future use
+  Future<String?> getExtractedText(String documentId) async {
+    try {
+      // Check if we have it in cache first
+      if (_extractedTextCache.containsKey(documentId)) {
+        final cachedText = _extractedTextCache[documentId];
+        if (cachedText != null && cachedText.trim().isNotEmpty) {
+          return cachedText;
+        }
+      }
+
+      // Fetch all documents metadata (which includes extracted_text)
+      final response = await HttpClient.get('/document/allDocsMetaData');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final documentsList = data['documents'] as List<dynamic>? ?? [];
+
+        // Find the specific document and get its extracted text
+        for (var doc in documentsList) {
+          final docId = doc['document_id'] as String?;
+          final extractedText = doc['extracted_text'] as String?;
+          
+          // Cache all extracted texts while we're at it
+          if (docId != null && extractedText != null && extractedText.isNotEmpty) {
+            _extractedTextCache[docId] = extractedText;
+          }
+        }
+
+        // Return the requested document's extracted text
+        if (_extractedTextCache.containsKey(documentId)) {
+          final text = _extractedTextCache[documentId];
+          if (text != null && text.trim().isNotEmpty) {
+            return text;
+          }
+        }
+
+        // Document found but no extracted text available
+        return null;
+      } else if (response.statusCode == 401) {
+        throw Exception('Unauthorized: Please login again');
+      } else {
+        throw Exception('Failed to fetch document data: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error fetching extracted text: $e');
+    }
+  }
+
   /// Parse date string from API
   DateTime _parseDate(String? dateString) {
     if (dateString == null || dateString.isEmpty) {
@@ -92,6 +154,7 @@ class DocumentService {
   /// Clear cache (call this after adding/deleting documents)
   void clearCache() {
     _cachedDocuments.clear();
+    _extractedTextCache.clear();
     _lastFetchTime = null;
   }
 
@@ -115,4 +178,3 @@ class DocumentService {
     }
   }
 }
-

@@ -257,25 +257,30 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.document_scanner_outlined,
-              size: 80, color: Colors.grey.shade400),
+          Icon(
+            Icons.folder_open,
+            size: 64,
+            color: Colors.grey.shade400,
+          ),
           const SizedBox(height: 16),
           Text(
-            _searchQuery.isEmpty
-                ? 'No scanned documents yet'
-                : 'No documents found',
+            _searchQuery.isNotEmpty
+                ? 'No documents found'
+                : 'No documents yet',
             style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
+              fontSize: 18,
               color: Colors.grey.shade600,
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            _searchQuery.isEmpty
-                ? 'Start by scanning your first document'
-                : 'Try a different search term',
-            style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+            _searchQuery.isNotEmpty
+                ? 'Try a different search term'
+                : 'Upload a document to get started',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey.shade500,
+            ),
           ),
         ],
       ),
@@ -288,59 +293,129 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.visibility),
-              title: const Text('View Document'),
-              onTap: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Opening ${document.title}...')),
-                );
-              },
+      builder: (context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 12),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(2),
             ),
-            ListTile(
-              leading: const Icon(Icons.summarize),
-              title: const Text('View Summary'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(
-                  context,
-                  '/document-summary',
-                  arguments: document,
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.quiz),
-              title: const Text('Generate MCQ'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => QuizGeneratorPage(
-                      documentId: document.id,
-                      documentTitle: document.title,
+          ),
+          const SizedBox(height: 20),
+          ListTile(
+            leading: const Icon(Icons.visibility),
+            title: const Text('View Document'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(
+                context,
+                '/document-viewer',
+                arguments: document,
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.summarize),
+            title: const Text('View Summary'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(
+                context,
+                '/document-summary',
+                arguments: document,
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.quiz),
+            title: const Text('Generate MCQ'),
+            onTap: () async {
+              Navigator.pop(context);
+              
+              // Show loading dialog
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (context) => const Center(
+                  child: Card(
+                    child: Padding(
+                      padding: EdgeInsets.all(20.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(height: 16),
+                          Text('Loading document text...'),
+                        ],
+                      ),
                     ),
                   ),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.delete, color: Colors.red),
-              title: const Text('Delete', style: TextStyle(color: Colors.red)),
-              onTap: () {
-                Navigator.pop(context);
-                _deleteDocument(document);
-              },
-            ),
-          ],
-        ),
+                ),
+              );
+
+              try {
+                // Fetch the extracted text from the document
+                final extractedText = await _documentService.getExtractedText(document.id);
+                
+                // Close loading dialog
+                if (mounted) {
+                  Navigator.pop(context);
+                }
+
+                if (extractedText == null || extractedText.isEmpty) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('No text found in document. Please make sure the document has been processed.'),
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
+                  }
+                  return;
+                }
+
+                // Navigate to quiz generator with the extracted text
+                if (mounted) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => QuizGeneratorPage(
+                        documentId: document.id,
+                        documentTitle: document.title,
+                        extractedText: extractedText,
+                        autoGenerate: true,
+                      ),
+                    ),
+                  );
+                }
+              } catch (e) {
+                // Close loading dialog if still open
+                if (mounted) {
+                  Navigator.pop(context);
+                  
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Failed to load document text: ${e.toString()}'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.delete, color: Colors.red),
+            title: const Text('Delete', style: TextStyle(color: Colors.red)),
+            onTap: () {
+              Navigator.pop(context);
+              _deleteDocument(document);
+            },
+          ),
+        ],
       ),
     );
   }
