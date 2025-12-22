@@ -5,7 +5,6 @@ import {
   getUser,
   getProfilePicture,
   toggleDarkModeSetting,
-  toggleNotificationSetting,
   updateUser,
 } from "../services/user.js";
 import { profilePicturesUpload } from "../config/multer.js";
@@ -19,7 +18,6 @@ router.put("/update", profilePicturesUpload.single("profilePicture"), updateUser
 router.delete("/delete", deleteUser);
 
 // Settings Endpoints
-router.put("/settings/notification", toggleNotificationSetting);
 router.put("/settings/darkmode", toggleDarkModeSetting);
 router.put("/settings/language", changeLanguageSetting);
 

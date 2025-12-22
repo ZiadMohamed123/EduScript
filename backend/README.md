@@ -13,7 +13,6 @@ A Node.js Express backend API for the EduScript mobile application, integrated w
 - **GET /user/profile-picture** - Get user's profile picture
 - **PUT /user/update** - Update user profile (with profile picture upload)
 - **DELETE /user/delete** - Delete user account (and associated profile picture)
-- **PUT /user/settings/notification** - Toggle notification settings
 - **PUT /user/settings/darkmode** - Toggle dark mode
 - **PUT /user/settings/language** - Update language preference
 
