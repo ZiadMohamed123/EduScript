@@ -55,4 +55,24 @@ class ApiConfig {
   static String? get openAiApiKey {
     return dotenv.env['OPENAI_API_KEY'];
   }
+
+  /// Backend base URL for your own API
+  /// Example .env entry:
+  /// BACKEND_BASE_URL=https://your-backend-url.com
+  static String get backendBaseUrl {
+    if (!dotenv.isInitialized) {
+      throw Exception(
+        'Environment variables not loaded. Make sure .env file exists and is loaded in main.dart',
+      );
+    }
+
+    final url = dotenv.env['BACKEND_BASE_URL']?.trim();
+    if (url == null || url.isEmpty) {
+      throw Exception(
+        'BACKEND_BASE_URL not found in .env file. '
+        'Add BACKEND_BASE_URL=https://your-backend-url.com to .env',
+      );
+    }
+    return url;
+  }
 }

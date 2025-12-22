@@ -1,4 +1,9 @@
+import 'dart:convert';
+
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../config/api_config.dart';
 
 /// User model for authentication
 class User {
@@ -6,23 +11,17 @@ class User {
   final String name;
   final String email;
 
-  User({
-    required this.id,
-    required this.name,
-    required this.email,
-  });
+  User({required this.id, required this.name, required this.email});
 
   Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'name': name,
-      'email': email,
-    };
+    return {'id': id, 'name': name, 'email': email};
   }
 
   factory User.fromJson(Map<String, dynamic> json) {
+    // Backend returns "user_id" but we may also support "id"
+    final id = (json['user_id'] ?? json['id']) as String;
     return User(
-      id: json['id'] as String,
+      id: id,
       name: json['name'] as String,
       email: json['email'] as String,
     );
@@ -31,13 +30,13 @@ class User {
 
 /// Authentication Service
 /// Handles login, signup, logout, and session management
-/// Uses SharedPreferences for local storage (can be replaced with backend API)
+/// Uses backend API + SharedPreferences for local storage
 class AuthService {
   static const String _keyIsLoggedIn = 'is_logged_in';
   static const String _keyUserId = 'user_id';
   static const String _keyUserName = 'user_name';
   static const String _keyUserEmail = 'user_email';
-  static const String _keyUsers = 'users'; // Store registered users
+  static const String _keyAuthToken = 'auth_token';
 
   static final AuthService _instance = AuthService._internal();
   factory AuthService() => _instance;
@@ -63,15 +62,16 @@ class AuthService {
       return null;
     }
 
-    return User(
-      id: userId,
-      name: userName,
-      email: userEmail,
-    );
+    return User(id: userId, name: userName, email: userEmail);
   }
 
-  /// Sign up a new user
-  /// In a real app, this would call a backend API
+  /// Get stored auth token (JWT) if available
+  Future<String?> getAuthToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyAuthToken);
+  }
+
+  /// Sign up a new user using backend API
   Future<AuthResult> signUp({
     required String name,
     required String email,
@@ -79,10 +79,7 @@ class AuthService {
   }) async {
     // Validate inputs
     if (name.trim().isEmpty) {
-      return AuthResult(
-        success: false,
-        message: 'Please enter your name',
-      );
+      return AuthResult(success: false, message: 'Please enter your name');
     }
 
     if (!_isValidEmail(email)) {
@@ -101,46 +98,57 @@ class AuthService {
 
     final prefs = await SharedPreferences.getInstance();
 
-    // Check if user already exists
-    final usersJson = prefs.getString(_keyUsers);
-    final users = usersJson != null
-        ? (usersJson.split('|').where((e) => e.isNotEmpty).toList())
-        : <String>[];
+    final uri = Uri.parse('${ApiConfig.backendBaseUrl}/auth/signup');
+    try {
+      final response = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email, 'password': password, 'name': name}),
+      );
 
-    // Check if email is already registered
-    for (final userData in users) {
-      final parts = userData.split(':');
-      if (parts.length >= 2 && parts[1] == email) {
+      if (response.statusCode == 201) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final userJson = data['user'] as Map<String, dynamic>;
+        final user = User.fromJson(userJson);
+
+        // Note: signup endpoint does not return token in docs,
+        // so we just mark user as created and logged in locally.
+        await prefs.setBool(_keyIsLoggedIn, true);
+        await prefs.setString(_keyUserId, user.id);
+        await prefs.setString(_keyUserName, user.name);
+        await prefs.setString(_keyUserEmail, user.email);
+
+        return AuthResult(
+          success: true,
+          message:
+              data['message'] as String? ?? 'Account created successfully!',
+          user: user,
+        );
+      } else if (response.statusCode == 400) {
+        return AuthResult(
+          success: false,
+          message: 'Missing required fields. Please check your input.',
+        );
+      } else if (response.statusCode == 409) {
         return AuthResult(
           success: false,
           message: 'An account with this email already exists',
         );
+      } else {
+        return AuthResult(
+          success: false,
+          message: 'Failed to create account. Please try again.',
+        );
       }
+    } catch (e) {
+      return AuthResult(
+        success: false,
+        message: 'Could not connect to server. Please try again.',
+      );
     }
-
-    // Create new user
-    final userId = DateTime.now().millisecondsSinceEpoch.toString();
-    final userData = '$userId:$email:$password:$name';
-    users.add(userData);
-
-    // Save users list
-    await prefs.setString(_keyUsers, users.join('|'));
-
-    // Auto-login after signup
-    await prefs.setBool(_keyIsLoggedIn, true);
-    await prefs.setString(_keyUserId, userId);
-    await prefs.setString(_keyUserName, name);
-    await prefs.setString(_keyUserEmail, email);
-
-    return AuthResult(
-      success: true,
-      message: 'Account created successfully!',
-      user: User(id: userId, name: name, email: email),
-    );
   }
 
-  /// Log in an existing user
-  /// In a real app, this would call a backend API
+  /// Log in an existing user using backend API
   Future<AuthResult> login({
     required String email,
     required String password,
@@ -153,47 +161,57 @@ class AuthService {
     }
 
     if (password.isEmpty) {
-      return AuthResult(
-        success: false,
-        message: 'Please enter your password',
-      );
+      return AuthResult(success: false, message: 'Please enter your password');
     }
 
     final prefs = await SharedPreferences.getInstance();
 
-    // Get registered users
-    final usersJson = prefs.getString(_keyUsers);
-    final users = usersJson != null
-        ? (usersJson.split('|').where((e) => e.isNotEmpty).toList())
-        : <String>[];
+    final uri = Uri.parse('${ApiConfig.backendBaseUrl}/auth/login');
+    try {
+      final response = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email, 'password': password}),
+      );
 
-    // Find user with matching email and password
-    for (final userData in users) {
-      final parts = userData.split(':');
-      if (parts.length >= 4 &&
-          parts[1] == email &&
-          parts[2] == password) {
-        // Login successful
-        final userId = parts[0];
-        final userName = parts[3];
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final token = data['token'] as String?;
+        final userJson = data['user'] as Map<String, dynamic>;
+        final user = User.fromJson(userJson);
 
         await prefs.setBool(_keyIsLoggedIn, true);
-        await prefs.setString(_keyUserId, userId);
-        await prefs.setString(_keyUserName, userName);
-        await prefs.setString(_keyUserEmail, email);
+        await prefs.setString(_keyUserId, user.id);
+        await prefs.setString(_keyUserName, user.name);
+        await prefs.setString(_keyUserEmail, user.email);
+        if (token != null) {
+          await prefs.setString(_keyAuthToken, token);
+        }
 
         return AuthResult(
           success: true,
-          message: 'Login successful!',
-          user: User(id: userId, name: userName, email: email),
+          message: data['message'] as String? ?? 'Login successful!',
+          user: user,
+        );
+      } else if (response.statusCode == 400) {
+        return AuthResult(
+          success: false,
+          message: 'Missing email or password.',
+        );
+      } else if (response.statusCode == 401) {
+        return AuthResult(success: false, message: 'Invalid email or password');
+      } else {
+        return AuthResult(
+          success: false,
+          message: 'Failed to login. Please try again.',
         );
       }
+    } catch (e) {
+      return AuthResult(
+        success: false,
+        message: 'Could not connect to server. Please try again.',
+      );
     }
-
-    return AuthResult(
-      success: false,
-      message: 'Invalid email or password',
-    );
   }
 
   /// Log out the current user
@@ -203,6 +221,7 @@ class AuthService {
     await prefs.remove(_keyUserId);
     await prefs.remove(_keyUserName);
     await prefs.remove(_keyUserEmail);
+    await prefs.remove(_keyAuthToken);
   }
 
   /// Validate email format
@@ -217,10 +236,5 @@ class AuthResult {
   final String message;
   final User? user;
 
-  AuthResult({
-    required this.success,
-    required this.message,
-    this.user,
-  });
+  AuthResult({required this.success, required this.message, this.user});
 }
-
