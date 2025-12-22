@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 
 class DocumentApiService {
   static const String baseUrl = 'http://10.0.2.2:5000';
@@ -23,10 +24,13 @@ class DocumentApiService {
     // File (MUST match multer field name)
 request.files.add(
   await http.MultipartFile.fromPath(
-    'document', // ✅ MUST match API docs
+    'document',
     imageFile.path,
+    filename: imageFile.path.split('/').last, // IMPORTANT
+    contentType: MediaType('application', 'pdf'), // 🔥 THE FIX
   ),
 );
+
 
 
     // Fields

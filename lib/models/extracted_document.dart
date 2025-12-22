@@ -5,14 +5,16 @@ class ExtractedDocument {
   final String? date;
   final String? studentName;
   final List<String> questions;
-
+  final String rawText;
+  
   ExtractedDocument({
     this.title,
     this.date,
     this.studentName,
     required this.questions,
+    required this.rawText, // ✅ Make sure this is here
   });
-
+  
   factory ExtractedDocument.fromJson(String jsonString) {
     try {
       final json = jsonDecode(jsonString) as Map<String, dynamic>;
@@ -21,10 +23,13 @@ class ExtractedDocument {
         date: json['date'] as String?,
         studentName: json['studentName'] as String?,
         questions: List<String>.from(json['questions'] as List<dynamic>? ?? []),
+        rawText: json['rawText'] as String? ?? '', // ✅ Add this
       );
     } catch (e) {
-      // Fallback to empty document if parsing fails
-      return ExtractedDocument(questions: []);
+      return ExtractedDocument(
+        questions: [],
+        rawText: '', // ✅ Add this
+      );
     }
   }
 
@@ -36,6 +41,7 @@ class ExtractedDocument {
       date: _extractDate(raw),
       studentName: _extractStudent(raw),
       questions: lines.where((e) => e.contains("?") || e.length > 20).toList(),
+      rawText: raw, // ✅ Pass the raw text
     );
   }
 
@@ -51,4 +57,3 @@ class ExtractedDocument {
     return match?.group(2);
   }
 }
-

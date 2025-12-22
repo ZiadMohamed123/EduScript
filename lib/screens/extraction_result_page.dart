@@ -32,13 +32,13 @@ class ExtractionResultPage extends StatelessWidget {
                       ),
                       const SizedBox(height: 12),
                       ElevatedButton.icon(
-                        onPressed: () => provider.loadDemoImage(),
+                        onPressed: () => provider.loadDemoPdf(),
                         icon: const Icon(Icons.image),
                         label: const Text("Load Demo Image"),
                       ),
                       const SizedBox(height: 8),
                       ElevatedButton.icon(
-                        onPressed: provider.imageFile == null
+                        onPressed: provider.documentFile == null
                             ? null
                             : () async {
                                 await provider.extract();
@@ -96,7 +96,7 @@ class ExtractionResultPage extends StatelessWidget {
               ] else if (!provider.isLoading)
                 Center(
                   child: Text(
-                    provider.imageFile == null
+                    provider.documentFile == null
                         ? "No image loaded yet"
                         : "No data extracted yet",
                     style: TextStyle(color: Colors.grey.shade600),
