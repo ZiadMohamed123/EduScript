@@ -57,22 +57,27 @@ class ApiConfig {
   }
 
   /// Backend base URL for your own API
+  ///
+  /// If BACKEND_BASE_URL is set in .env, it will be used.
+  /// Otherwise, defaults to http://localhost:5000 (or http://10.0.2.2:5000 for Android emulator)
+  ///
   /// Example .env entry:
-  /// BACKEND_BASE_URL=https://your-backend-url.com
+  /// BACKEND_BASE_URL=http://localhost:5000
   static String get backendBaseUrl {
-    if (!dotenv.isInitialized) {
-      throw Exception(
-        'Environment variables not loaded. Make sure .env file exists and is loaded in main.dart',
-      );
+    try {
+      if (dotenv.isInitialized) {
+        final envUrl = dotenv.env['BACKEND_BASE_URL']?.trim();
+        if (envUrl != null && envUrl.isNotEmpty) {
+          return envUrl;
+        }
+      }
+    } catch (e) {
+      // dotenv not initialized, use default
     }
 
-    final url = dotenv.env['BACKEND_BASE_URL']?.trim();
-    if (url == null || url.isEmpty) {
-      throw Exception(
-        'BACKEND_BASE_URL not found in .env file. '
-        'Add BACKEND_BASE_URL=https://your-backend-url.com to .env',
-      );
-    }
-    return url;
+    // Default fallback - you can override in .env
+    // For Android emulator, use http://10.0.2.2:5000
+    // For web/physical device, use your computer's IP or set BACKEND_BASE_URL in .env
+    return 'http://10.0.2.2:5000';
   }
 }

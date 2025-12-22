@@ -1,10 +1,84 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
 import '../utils/theme_controller.dart';
 import '../utils/auth_controller.dart';
+import '../utils/settings_controller.dart';
+import '../services/user_service.dart';
 
-class SettingsPage extends StatelessWidget {
+class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
+
+  @override
+  State<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends State<SettingsPage> {
+  final SettingsController _settingsController = SettingsController();
+  final UserService _userService = UserService();
+  Uint8List? _profilePictureBytes;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    await _settingsController.initialize();
+    await _loadProfilePicture();
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  Future<void> _loadProfilePicture() async {
+    try {
+      final pictureBytes = await _userService.getProfilePicture();
+      if (mounted) {
+        setState(() {
+          _profilePictureBytes = pictureBytes;
+        });
+      }
+    } catch (e) {
+      // Profile picture not found or error loading - use default avatar
+      if (mounted) {
+        setState(() {
+          _profilePictureBytes = null;
+        });
+      }
+    }
+  }
+
+
+  Future<void> _toggleDarkMode(bool value) async {
+    try {
+      // Always save to backend when toggled
+      await ThemeController.instance.toggleDark(value);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              value ? 'Dark mode enabled ✓' : 'Light mode enabled ✓',
+            ),
+            duration: const Duration(seconds: 2),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update dark mode: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        // Revert on error
+        await _settingsController.refresh();
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -24,14 +98,20 @@ class SettingsPage extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
+                    // Profile Picture
                     CircleAvatar(
                       radius: 30,
                       backgroundColor: AppColors.primary,
-                      child: const Icon(
-                        Icons.person,
-                        color: Colors.white,
-                        size: 30,
-                      ),
+                      backgroundImage: _profilePictureBytes != null
+                          ? MemoryImage(_profilePictureBytes!)
+                          : null,
+                      child: _profilePictureBytes == null
+                          ? const Icon(
+                              Icons.person,
+                              color: Colors.white,
+                              size: 30,
+                            )
+                          : null,
                     ),
                     const SizedBox(width: 16),
                     Expanded(
@@ -55,12 +135,11 @@ class SettingsPage extends StatelessWidget {
                     ),
                     IconButton(
                       icon: const Icon(Icons.edit),
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Edit profile coming soon!'),
-                          ),
-                        );
+                      onPressed: () async {
+                        // Navigate to edit profile and reload picture when returning
+                        await Navigator.pushNamed(context, '/edit-profile');
+                        // Reload profile picture after editing
+                        await _loadProfilePicture();
                       },
                     ),
                   ],
@@ -73,25 +152,16 @@ class SettingsPage extends StatelessWidget {
           _SettingsSection(
             title: 'General',
             children: [
-              _SettingsTile(
-                icon: Icons.notifications,
-                title: 'Notifications',
-                subtitle: 'Manage notification preferences',
-                trailing: Switch(value: true, onChanged: (value) {}),
-              ),
-              ValueListenableBuilder<ThemeMode>(
-                valueListenable: ThemeController.instance.themeMode,
-                builder: (context, mode, _) {
-                  final isDark = mode == ThemeMode.dark;
+              ValueListenableBuilder<bool>(
+                valueListenable: _settingsController.darkModeEnabled,
+                builder: (context, isDark, _) {
                   return _SettingsTile(
                     icon: Icons.dark_mode,
                     title: 'Dark Mode',
                     subtitle: 'Toggle dark theme',
                     trailing: Switch(
                       value: isDark,
-                      onChanged: (value) {
-                        ThemeController.instance.toggleDark(value);
-                      },
+                      onChanged: _toggleDarkMode,
                     ),
                   );
                 },
@@ -118,30 +188,6 @@ class SettingsPage extends StatelessWidget {
                 icon: Icons.info,
                 title: 'App Version',
                 subtitle: '0.1.0',
-              ),
-              _SettingsTile(
-                icon: Icons.help,
-                title: 'Help & Support',
-                subtitle: 'Get help and contact support',
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Help & Support coming soon!'),
-                    ),
-                  );
-                },
-              ),
-              _SettingsTile(
-                icon: Icons.privacy_tip,
-                title: 'Privacy Policy',
-                subtitle: 'View our privacy policy',
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Privacy Policy coming soon!'),
-                    ),
-                  );
-                },
               ),
             ],
           ),

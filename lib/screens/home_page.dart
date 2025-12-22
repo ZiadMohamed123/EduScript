@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
+import 'documents_list_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -88,57 +89,59 @@ class HomePage extends StatelessWidget {
               ),
               const SizedBox(height: 24),
 
-              // Secondary Actions
-              Row(
-                children: [
-                  Expanded(
-                    child: _ActionCard(
-                      icon: Icons.folder,
-                      title: 'My Documents',
-                      subtitle: 'View all',
-                      onTap: () {
-                        Navigator.pushNamed(context, '/documents');
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _ActionCard(
-                      icon: Icons.quiz,
-                      title: 'Quizzes',
-                      subtitle: 'Practice',
-                      onTap: () {
-                        Navigator.pushNamed(context, '/quiz');
-                      },
-                    ),
-                  ),
-                ],
+              // My Documents Section
+              _ActionCard(
+                icon: Icons.folder,
+                title: 'My Documents',
+                subtitle: 'View all your documents',
+                onTap: () {
+                  Navigator.pushNamed(context, '/documents');
+                },
               ),
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _ActionCard(
-                      icon: Icons.school,
-                      title: 'AI Tutor',
-                      subtitle: 'Study & Learn',
-                      onTap: () {
-                        Navigator.pushNamed(context, '/summary');
-                      },
+
+              // Recents Section
+              _ActionCard(
+                icon: Icons.history,
+                title: 'Recents',
+                subtitle: 'Last 10 scanned documents',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const DocumentsListPage(showRecentsOnly: true),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _ActionCard(
-                      icon: Icons.history,
-                      title: 'Recent',
-                      subtitle: 'Last scans',
-                      onTap: () {
-                        Navigator.pushNamed(context, '/documents');
-                      },
+                  );
+                },
+              ),
+              const SizedBox(height: 24),
+
+              // AI Tutor - Bigger Button
+              ElevatedButton.icon(
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('AI Tutor feature coming soon!'),
                     ),
+                  );
+                },
+                icon: const Icon(Icons.school, size: 32),
+                label: const Padding(
+                  padding: EdgeInsets.all(20.0),
+                  child: Text(
+                    'AI Tutor - Ask Questions',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
-                ],
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.accent,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  elevation: 4,
+                  minimumSize: const Size(double.infinity, 80),
+                ),
               ),
             ],
           ),
@@ -170,25 +173,39 @@ class _ActionCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
+          padding: const EdgeInsets.all(20.0),
+          child: Row(
             children: [
-              Icon(icon, size: 32, color: AppColors.primary),
-              const SizedBox(height: 8),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                textAlign: TextAlign.center,
+                child: Icon(icon, size: 32, color: AppColors.primary),
               ),
-              const SizedBox(height: 4),
-              Text(
-                subtitle,
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                textAlign: TextAlign.center,
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style:
+                          TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                    ),
+                  ],
+                ),
               ),
+              Icon(Icons.chevron_right, color: Colors.grey.shade400),
             ],
           ),
         ),
