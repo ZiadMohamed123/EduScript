@@ -29,7 +29,9 @@ export class Document {
   static async findByUserId(user_id) {
     const { data, error } = await supabase
       .from("Document")
-      .select("document_id, name, no_of_pages, upload_date, file_name, summary")
+      .select(
+        "document_id, name, no_of_pages, upload_date, file_name, summary, extracted_text"
+      )
       .eq("user_id", user_id)
       .order("upload_date", { ascending: false });
 

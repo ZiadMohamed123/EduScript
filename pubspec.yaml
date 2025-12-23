@@ -1,29 +1,41 @@
 name: quiz_generator
 description: A Flutter app to generate quizzes using OpenAI API
-publish_to: 'none'
+publish_to: "none"
 
-version: 1.0.0+1
+version: 1.0.0+0
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
+  sdk: ">=3.0.0 <4.0.0"
 
 dependencies:
   flutter:
     sdk: flutter
-
-  cupertino_icons: ^1.0.6
-
-  # HTTP requests
-  http: ^1.2.1
-
-  # Environment variables (.env)
+  http: ^1.1.0
+  image: ^4.0.17
+  flutter_tesseract_ocr: ^0.4.24
   flutter_dotenv: ^5.1.0
+  shared_preferences: ^2.2.2
+  google_mlkit_text_recognition: ^0.15.0
+  google_mlkit_commons: ^0.11.0
+  provider: ^6.1.5+1
+  path_provider: ^2.1.5
+  image_picker: ^1.0.7
+  pdfx: ^2.9.0
+  printing: ^5.14.2
+  http_parser: ^4.1.2
 
-  # JSON model support (if you need)
+  google_mlkit_document_scanner: ^0.4.0
+  cupertino_icons: ^1.0.6
+  pdf: ^3.10.8
+
+
   collection: ^1.17.2
 
-  # State or utility (optional)
-  provider: ^6.0.5
+
+
+  # Shared preferences
+  shared_preferences: ^2.2.2
+  image_picker: ^1.2.1
 
 dev_dependencies:
   flutter_test:
@@ -31,9 +43,9 @@ dev_dependencies:
   flutter_lints: ^3.0.0
 
 flutter:
-
   uses-material-design: true
 
-  # VERY IMPORTANT: Load the .env file as an asset
+  # Assets
   assets:
-    - .env
+    - assets/
+    - android/app/src/main/assets/tessdata/
