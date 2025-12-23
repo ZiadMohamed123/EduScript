@@ -110,7 +110,7 @@ class DocumentProvider with ChangeNotifier {
   }
 
   /// Simple OCR for PDF (page by page)
-  Future<void> extractSimple() async {
+  Future<void> extractSimple(String image) async {
     if (documentFile == null) {
       errorMessage = 'No PDF loaded';
       notifyListeners();
@@ -190,7 +190,7 @@ class DocumentProvider with ChangeNotifier {
   }
 
   /// Structured OCR (all pages at once - faster)
-  Future<void> extractStructured() async {
+  Future<void> extractStructured(File image) async {
     if (documentFile == null) {
       errorMessage = 'No PDF loaded';
       notifyListeners();
@@ -211,11 +211,11 @@ class DocumentProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final images = await _renderPdfToImages(documentFile!);
+    
       
       debugPrint('🔍 Structured extraction (page 1)...');
       
-      final structured = await OpenRouterOcrService.extractStructuredData(images[0]);
+      final structured = await OpenRouterOcrService.extractStructuredData(image);
       
       extractedRawText = structured['rawText'] ?? '';
       
@@ -251,7 +251,7 @@ Future<void> _uploadToBackend() async {
     debugPrint('📝 File extension: ${documentFile!.path.split('.').last}');
     
     final response = await DocumentApiService.createDocument(
-      imageFile: documentFile!, // ✅ This is already the PDF file, not PNG
+      imageFile: documentFile!, 
       extractedText: extractedRawText,
       name: document?.title ?? 'Scanned Document',
       noOfPages: totalPages > 0 ? totalPages : null,
@@ -270,7 +270,7 @@ Future<void> _uploadToBackend() async {
 }
 
   /// Default extraction method
-  Future<void> extract() => extractSimple();
+  Future<void> extract() => extractSimple("path");
 
   void clearCache() {
     _cache.clear();

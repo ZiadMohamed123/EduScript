@@ -24,14 +24,22 @@ class _QuizGeneratorPageState extends State<QuizGeneratorPage> {
   int _currentIndex = 0;
 
   Future<void> _generateQuiz() async {
+    if (_notesController.text.isEmpty) return;
+
     setState(() => _isLoading = true);
-
-    _questions = await _api.generateQuiz(_notesController.text);
-
-    setState(() {
+    try {
+      _questions = await _api.generateQuiz(_notesController.text);
       _currentIndex = 0;
-      _isLoading = false;
-    });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error generating quiz: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   Widget _buildQuestionContent(Question q) {

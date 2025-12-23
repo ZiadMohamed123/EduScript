@@ -2,26 +2,41 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 
+import 'screens/scanner_page.dart';
 import 'screens/splash_screen.dart';
 import 'screens/home_page.dart';
 import 'screens/settings_page.dart';
 import 'screens/documents_list_page.dart';
 import 'screens/quiz_generator_page.dart';
 import 'screens/summary_page.dart';
+
+import 'utils/app_theme.dart';
+import 'utils/theme_controller.dart';
+
 import 'screens/auth/login_page.dart';
 import 'screens/auth/signup_page.dart';
 import 'screens/extraction_result_page.dart';
 
-import 'utils/app_theme.dart';
-import 'utils/theme_controller.dart';
 import 'providers/document_provider.dart';
 
-Future<void> main() async {
+
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // ⚠️ Keep startup VERY light
-  await dotenv.load(fileName: 'assets/.env');
-
+  try {
+    await dotenv.load(fileName: ".env");
+    // Verify API key was loaded
+    final apiKey = dotenv.env['GEMINI_API_KEY'];
+    if (apiKey == null || apiKey.isEmpty) {
+      debugPrint("Warning: GEMINI_API_KEY is not set in .env file");
+    } else {
+      debugPrint("Gemini API key loaded successfully (${apiKey.substring(0, apiKey.length > 7 ? 7 : apiKey.length)}...)");
+    }
+  } catch (e) {
+    // .env file not found, but app can still run
+    // API calls will fail if API key is needed
+    debugPrint("Warning: .env file not found or could not be loaded: $e");
+    debugPrint("Please create a .env file in the project root with GEMINI_API_KEY=your_key");
+  }
   runApp(const MainApp());
 }
 
@@ -48,10 +63,7 @@ class MainApp extends StatelessWidget {
             '/settings': (context) => const SettingsPage(),
             '/documents': (context) => const DocumentsListPage(),
             '/quiz': (context) => const QuizGeneratorPage(),
-            '/extracted': (context) => ChangeNotifierProvider(
-                  create: (_) => DocumentProvider(),
-                  child: const ExtractionResultPage(),
-                ),
+           
             '/summary': (context) {
               final args = ModalRoute.of(context)?.settings.arguments;
               if (args is Document) {
@@ -59,6 +71,10 @@ class MainApp extends StatelessWidget {
               }
               return const SummaryPage();
             },
+            '/scanner': (context) => ChangeNotifierProvider(
+                  create: (_) => DocumentProvider(),
+                  child: const ScannerPage(),
+                ),
           },
         );
       },

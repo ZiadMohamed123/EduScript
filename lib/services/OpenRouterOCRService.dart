@@ -4,9 +4,16 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:image/image.dart' as img;
-
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 class OpenRouterOcrService {
-  static const String apiKey = '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';
+ static String get apiKey {
+    final key = dotenv.env['Api_Key_ex'];
+    if (key == null || key.isEmpty) {
+      throw Exception('Api_Key_ex not found in .env');
+    }
+    return key;
+  }
+
   static const String baseUrl = 'https://openrouter.ai/api/v1/chat/completions';
 
   static Future<String> extractTextFromImage(
