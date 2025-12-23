@@ -37,7 +37,7 @@ class AuthService {
   static const String _keyUserName = 'user_name';
   static const String _keyUserEmail = 'user_email';
   static const String _keyUsers = 'users'; // Store registered users
-
+  static const String _keyAuthToken = 'auth_token';
   static final AuthService _instance = AuthService._internal();
   factory AuthService() => _instance;
   AuthService._internal();
@@ -76,7 +76,7 @@ class AuthService {
       // Fetch user data from API using JWT token
       final profileData = await _userService.getUserProfile();
       final userData = profileData['user'] as Map<String, dynamic>?;
-      
+
       if (userData != null) {
         return User.fromJson(userData);
       }

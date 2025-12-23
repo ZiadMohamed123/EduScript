@@ -79,18 +79,7 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
     }
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _loadDocuments();
-  }
-
-  void _loadDocuments() {
-    setState(() {
-      _documents = _documentService.getAllDocuments();
-    });
-  }
-
+  
   @override
   Widget build(BuildContext context) {
     final filteredDocuments = _documents.where((doc) {
