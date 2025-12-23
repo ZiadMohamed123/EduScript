@@ -2,6 +2,33 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:developer' as developer;
 
 class ApiConfig {
+  /// Base URL for the backend API
+  /// For web development, make sure your backend server is running and accessible
+  /// If using CORS, ensure your backend allows requests from your Flutter web origin
+  static String get backendBaseUrl {
+    // For web development - use the full URL including http://
+    const defaultUrl = 'http://localhost:5000';
+    
+    if (!dotenv.isInitialized) {
+      developer.log('Environment variables not loaded, using default backend URL: $defaultUrl');
+      return defaultUrl;
+    }
+    
+    // Try to get URL from environment variables
+    final url = dotenv.env['BACKEND_URL']?.trim() ?? 
+               dotenv.env['BACKEND_BASE_URL']?.trim();
+    
+    if (url != null && url.isNotEmpty) {
+      // Ensure URL has http:// or https://
+      if (!url.startsWith('http')) {
+        return 'http://$url';
+      }
+      return url;
+    }
+    
+    return defaultUrl;
+  }
+
   /// Get OpenRouter API key from environment variables
   /// Get your free API key from: https://openrouter.ai/keys
   /// Make sure to load .env file in main.dart before using this
@@ -55,21 +82,5 @@ class ApiConfig {
   static String? get openAiApiKey {
     return dotenv.env['OPENAI_API_KEY'];
   }
-   static String get nvcApiKey {
-    if (!dotenv.isInitialized) {
-      throw Exception(
-        'Environment variables not loaded. Make sure .env file exists and is loaded in main.dart',
-      );
-    }
 
-    final key = dotenv.env['NVC_API_KEY']?.trim();
-    if (key == null || key.isEmpty) {
-      developer.log('Available env keys: ${dotenv.env.keys.toList()}');
-      throw Exception(
-        'NVC_API_KEY not found in .env file. Please add it.'
-      );
-    }
-    return key;
-  }
 }
-

@@ -328,9 +328,13 @@ class _ChatWidgetState extends State<ChatWidget> {
                         ),
                         isDense: true,
                       ),
-                      maxLines: null,
+                      maxLines: 1,
                       textInputAction: TextInputAction.send,
-                      onSubmitted: _sendMessage,
+                      onSubmitted: (value) {
+                        if (value.trim().isNotEmpty) {
+                          _sendMessage(value);
+                        }
+                      },
                     ),
                   ),
                   const SizedBox(width: 8),

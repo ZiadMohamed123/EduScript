@@ -44,14 +44,16 @@ class _SignUpPageState extends State<SignUpPage> {
       if (!mounted) return;
 
       if (result.success) {
-        // Show success message and navigate to home
+
+        // Show success message and navigate to login page
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(result.message),
+            content: Text('${result.message} Please login to continue.'),
             backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
           ),
         );
-        Navigator.pushReplacementNamed(context, '/home');
+        Navigator.pushReplacementNamed(context, '/login');
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
