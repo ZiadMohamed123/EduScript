@@ -116,19 +116,36 @@ class OpenRouterService {
     String? context,
   }) async {
     final systemPrompt =
-        '''You are an AI study assistant specialized in creating comprehensive summaries for educational content. 
-Your summaries should be clear, well-structured, and highlight key concepts, important points, and practical applications.''';
+        '''You are an expert academic assistant specialized in creating clear, concise, and comprehensive summaries of educational documents. 
+Your goal is to help students understand and retain key information from their study materials.
 
-    final userPrompt = documentContent != null
-        ? '''Please provide a comprehensive summary of the following document titled "${documentTitle}":
-        
+Guidelines:
+- Create a well-structured summary that captures the essence of the document
+- Focus on main concepts, key points, and important details
+- Use clear, academic language
+- Organize information logically with proper headings and sections
+- Highlight definitions, formulas, and critical information
+- Make it easy to read and study from
+- Keep it comprehensive but concise
+- Return only the summary text, no meta-commentary or explanations''';
+
+    final userPrompt = documentContent != null && documentContent.isNotEmpty
+        ? '''Please create a comprehensive, well-structured summary of the following document titled "${documentTitle}".
+
+Document Content:
 $documentContent
 
-Include:
-- Key points and main concepts
-- Important definitions or formulas
-- Practical applications
-- Study recommendations'''
+Requirements:
+1. Start with a brief overview of the document's main topic and purpose
+2. Organize the summary into clear sections with headings
+3. Include all key concepts, definitions, and important information
+4. Highlight any formulas, equations, or technical terms
+5. Summarize main points and supporting details
+6. Make it study-friendly and easy to review
+7. Use clear formatting with headings, bullet points, and paragraphs
+8. Ensure the summary is comprehensive enough to be useful for studying
+
+Format the summary with clear sections and proper structure. Return only the summary text.'''
         : '''Please provide a summary for the document "${documentTitle}". 
 ${context != null ? 'Context: $context' : 'Generate a general summary structure that would be helpful for studying this topic.'}''';
 
@@ -137,7 +154,7 @@ ${context != null ? 'Context: $context' : 'Generate a general summary structure 
         {'role': 'user', 'content': userPrompt},
       ],
       systemPrompt: systemPrompt,
-      temperature: 0.5,
+      temperature: 0.3, // Lower temperature for more focused, consistent summaries
     );
   }
 

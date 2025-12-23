@@ -17,6 +17,7 @@ class _SummaryPageState extends State<SummaryPage> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final List<ChatMessage> _messages = [];
+  final DocumentService _documentService = DocumentService();
   bool _isLoading = false;
   Document? _selectedDocument;
   OpenRouterService? _openRouterService;
@@ -95,7 +96,7 @@ class _SummaryPageState extends State<SummaryPage> {
   }
 
   Future<void> _generateSummaryAutomatically() async {
-    if (_selectedDocument == null || !_isServiceInitialized()) {
+    if (_selectedDocument == null) {
       _addWelcomeMessage();
       return;
     }
@@ -106,9 +107,63 @@ class _SummaryPageState extends State<SummaryPage> {
     });
 
     try {
+      // According to API docs: GET /document/allDocsMetaData returns summary and extracted_text
+      final documentData =
+          await _documentService.getDocumentData(_selectedDocument!.id);
+      final existingSummary = documentData['summary'];
+      final extractedText = documentData['extracted_text'];
+
+      if (existingSummary != null && existingSummary.trim().isNotEmpty) {
+        // Summary exists in database, use it immediately
+        if (mounted) {
+          setState(() {
+            _generatedSummary = existingSummary;
+            _isGeneratingSummary = false;
+          });
+        }
+        return;
+      }
+
+      // No summary exists - generate one using extracted_text
+      if (extractedText == null || extractedText.trim().isEmpty) {
+        if (mounted) {
+          setState(() {
+            _isGeneratingSummary = false;
+            _showSummaryView = false;
+          });
+          _addWelcomeMessage();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  'No summary found and extracted text is not available. Cannot generate summary.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+
+      // Generate summary if service is available
+      if (!_isServiceInitialized()) {
+        if (mounted) {
+          setState(() {
+            _isGeneratingSummary = false;
+            _showSummaryView = false;
+          });
+          _addWelcomeMessage();
+        }
+        return;
+      }
+
+      // Generate new summary using extracted text
       final summary = await _openRouterService!.generateSummary(
         documentTitle: _selectedDocument!.title,
+        documentContent: extractedText,
       );
+
+      // Save summary to database according to API docs: PUT /document/edit/:documentID
+      await _documentService.updateDocumentSummary(
+          _selectedDocument!.id, summary);
 
       if (mounted) {
         setState(() {
@@ -125,7 +180,7 @@ class _SummaryPageState extends State<SummaryPage> {
         _addWelcomeMessage();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to generate summary: $e'),
+            content: Text('Failed to load summary: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -213,9 +268,35 @@ class _SummaryPageState extends State<SummaryPage> {
       if (lowerMessage.contains('summary') ||
           lowerMessage.contains('summarize')) {
         if (_selectedDocument != null) {
-          response = await _openRouterService!.generateSummary(
-            documentTitle: _selectedDocument!.title,
-          );
+          // First check if summary exists in database
+          try {
+            final documentData =
+                await _documentService.getDocumentData(_selectedDocument!.id);
+            final existingSummary = documentData['summary'];
+            final extractedText = documentData['extracted_text'];
+
+            if (existingSummary != null && existingSummary.trim().isNotEmpty) {
+              response = existingSummary;
+            } else if (extractedText != null &&
+                extractedText.trim().isNotEmpty) {
+              // No summary exists, generate one using extracted_text
+              response = await _openRouterService!.generateSummary(
+                documentTitle: _selectedDocument!.title,
+                documentContent: extractedText,
+              );
+              // Save generated summary to database
+              await _documentService.updateDocumentSummary(
+                  _selectedDocument!.id, response);
+            } else {
+              response =
+                  'No summary found and extracted text is not available. Cannot generate summary.';
+            }
+          } catch (e) {
+            // If database check fails, try generating without extracted_text
+            response = await _openRouterService!.generateSummary(
+              documentTitle: _selectedDocument!.title,
+            );
+          }
         } else {
           response = await _openRouterService!.tutorChat(
             userMessage: userMessage,
@@ -426,9 +507,10 @@ class _SummaryPageState extends State<SummaryPage> {
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
-          final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+          final isLandscape =
+              MediaQuery.of(context).orientation == Orientation.landscape;
           final maxContentWidth = isLandscape ? 1000.0 : double.infinity;
-          
+
           return Center(
             child: ConstrainedBox(
               constraints: BoxConstraints(maxWidth: maxContentWidth),
@@ -436,130 +518,139 @@ class _SummaryPageState extends State<SummaryPage> {
                   ? _buildSummaryPDFView()
                   : Column(
                       children: [
-                // Quick Actions Bar
-                if (_selectedDocument != null && !_showSummaryView)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color:
-                          scheme.surfaceVariant.withOpacity(isDark ? 0.3 : 0.8),
-                      border: Border(
-                        bottom: BorderSide(color: scheme.outlineVariant),
-                      ),
-                    ),
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          _QuickActionChip(
-                            icon: Icons.summarize,
-                            label: 'Summary',
-                            onTap: () => _sendMessage('Generate a summary'),
-                          ),
-                          const SizedBox(width: 8),
-                          _QuickActionChip(
-                            icon: Icons.note,
-                            label: 'Study Notes',
-                            onTap: () => _sendMessage('Create study notes'),
-                          ),
-                          const SizedBox(width: 8),
-                          _QuickActionChip(
-                            icon: Icons.help_outline,
-                            label: 'Explain',
-                            onTap: () =>
-                                _sendMessage('Explain the main concepts'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                // Summary Loading or Messages List
-                Expanded(
-                  child: _isGeneratingSummary
-                      ? _buildSummaryLoadingView()
-                      : (_messages.isEmpty
-                          ? _buildEmptyState()
-                          : ListView.builder(
-                              controller: _scrollController,
-                              padding: const EdgeInsets.all(16),
-                              itemCount:
-                                  _messages.length + (_isLoading ? 1 : 0),
-                              itemBuilder: (context, index) {
-                                if (index == _messages.length) {
-                                  return _buildTypingIndicator();
-                                }
-                                return _ChatBubble(message: _messages[index]);
-                              },
-                            )),
-                ),
-
-                // Input Area
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: scheme.surface,
-                    boxShadow: [
-                      BoxShadow(
-                        color: isDark
-                            ? Colors.black.withOpacity(0.4)
-                            : Colors.grey.shade300,
-                        blurRadius: 6,
-                        offset: const Offset(0, -2),
-                      ),
-                    ],
-                  ),
-                  child: SafeArea(
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _messageController,
-                            decoration: InputDecoration(
-                              hintText:
-                                  'Ask about summaries, concepts, or study materials...',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(24),
-                                borderSide:
+                        // Quick Actions Bar
+                        if (_selectedDocument != null && !_showSummaryView)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: scheme.surfaceVariant
+                                  .withOpacity(isDark ? 0.3 : 0.8),
+                              border: Border(
+                                bottom:
                                     BorderSide(color: scheme.outlineVariant),
                               ),
-                              filled: true,
-                              fillColor: scheme.surfaceVariant.withOpacity(
-                                isDark ? 0.3 : 0.7,
-                              ),
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: 10,
+                            ),
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                children: [
+                                  _QuickActionChip(
+                                    icon: Icons.summarize,
+                                    label: 'Summary',
+                                    onTap: () =>
+                                        _sendMessage('Generate a summary'),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  _QuickActionChip(
+                                    icon: Icons.note,
+                                    label: 'Study Notes',
+                                    onTap: () =>
+                                        _sendMessage('Create study notes'),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  _QuickActionChip(
+                                    icon: Icons.help_outline,
+                                    label: 'Explain',
+                                    onTap: () => _sendMessage(
+                                        'Explain the main concepts'),
+                                  ),
+                                ],
                               ),
                             ),
-                            style: TextStyle(
-                              color: isDark ? scheme.onSurface : Colors.black87,
-                            ),
-                            maxLines: 1,
-                            textInputAction: TextInputAction.send,
-                            onSubmitted: (value) {
-                              if (value.trim().isNotEmpty) {
-                                _sendMessage(value);
-                              }
-                            },
                           ),
+
+                        // Summary Loading or Messages List
+                        Expanded(
+                          child: _isGeneratingSummary
+                              ? _buildSummaryLoadingView()
+                              : (_messages.isEmpty
+                                  ? _buildEmptyState()
+                                  : ListView.builder(
+                                      controller: _scrollController,
+                                      padding: const EdgeInsets.all(16),
+                                      itemCount: _messages.length +
+                                          (_isLoading ? 1 : 0),
+                                      itemBuilder: (context, index) {
+                                        if (index == _messages.length) {
+                                          return _buildTypingIndicator();
+                                        }
+                                        return _ChatBubble(
+                                            message: _messages[index]);
+                                      },
+                                    )),
                         ),
-                        const SizedBox(width: 8),
-                        CircleAvatar(
-                          backgroundColor: scheme.primary,
-                          child: IconButton(
-                            icon: Icon(Icons.send, color: scheme.onPrimary),
-                            onPressed: () =>
-                                _sendMessage(_messageController.text),
+
+                        // Input Area
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: scheme.surface,
+                            boxShadow: [
+                              BoxShadow(
+                                color: isDark
+                                    ? Colors.black.withOpacity(0.4)
+                                    : Colors.grey.shade300,
+                                blurRadius: 6,
+                                offset: const Offset(0, -2),
+                              ),
+                            ],
+                          ),
+                          child: SafeArea(
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    controller: _messageController,
+                                    decoration: InputDecoration(
+                                      hintText:
+                                          'Ask about summaries, concepts, or study materials...',
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(24),
+                                        borderSide: BorderSide(
+                                            color: scheme.outlineVariant),
+                                      ),
+                                      filled: true,
+                                      fillColor:
+                                          scheme.surfaceVariant.withOpacity(
+                                        isDark ? 0.3 : 0.7,
+                                      ),
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                        horizontal: 20,
+                                        vertical: 10,
+                                      ),
+                                    ),
+                                    style: TextStyle(
+                                      color: isDark
+                                          ? scheme.onSurface
+                                          : Colors.black87,
+                                    ),
+                                    maxLines: 1,
+                                    textInputAction: TextInputAction.send,
+                                    onSubmitted: (value) {
+                                      if (value.trim().isNotEmpty) {
+                                        _sendMessage(value);
+                                      }
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                CircleAvatar(
+                                  backgroundColor: scheme.primary,
+                                  child: IconButton(
+                                    icon: Icon(Icons.send,
+                                        color: scheme.onPrimary),
+                                    onPressed: () =>
+                                        _sendMessage(_messageController.text),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ],
                     ),
-                  ),
-                ),
-              ],
-            ),
             ),
           );
         },

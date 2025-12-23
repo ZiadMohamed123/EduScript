@@ -262,7 +262,7 @@ class _LoginPageState extends State<LoginPage> {
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           SizedBox(
-                            height: MediaQuery.of(context).size.height * 0.15,
+                            height: MediaQuery.of(context).size.height * 0.03,
                           ),
                           Text(
                             'Welcome back',
@@ -279,7 +279,7 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                             textAlign: TextAlign.center,
                           ),
-                          const SizedBox(height: 32),
+                          const SizedBox(height: 20),
                           SizedBox(
                             width: double.infinity,
                             child: Column(

@@ -155,9 +155,14 @@ class AuthService {
         );
       }
     } catch (e) {
+      // Preserve detailed error messages from HttpClient
+      String errorMessage = e.toString();
+      if (errorMessage.contains('Exception: ')) {
+        errorMessage = errorMessage.replaceFirst('Exception: ', '');
+      }
       return AuthResult(
         success: false,
-        message: 'Could not connect to server. Please try again.',
+        message: errorMessage,
       );
     }
   }
@@ -219,9 +224,14 @@ class AuthService {
         );
       }
     } catch (e) {
+      // Preserve detailed error messages from HttpClient
+      String errorMessage = e.toString();
+      if (errorMessage.contains('Exception: ')) {
+        errorMessage = errorMessage.replaceFirst('Exception: ', '');
+      }
       return AuthResult(
         success: false,
-        message: 'Could not connect to server. Please try again.',
+        message: errorMessage,
       );
     }
   }

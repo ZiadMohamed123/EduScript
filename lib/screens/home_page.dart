@@ -334,20 +334,20 @@ class _ActionCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: EdgeInsets.symmetric(
-            horizontal: isLandscape ? 14.0 : 16.0, 
-            vertical: isLandscape ? 12.0 : 12.0,
+            horizontal: isLandscape ? 14.0 : 20.0, 
+            vertical: isLandscape ? 12.0 : 20.0,
           ),
           child: Row(
             children: [
               Container(
-                padding: EdgeInsets.all(isLandscape ? 8 : 10),
+                padding: EdgeInsets.all(isLandscape ? 8 : 12),
                 decoration: BoxDecoration(
                   color: AppColors.primary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(icon, size: isLandscape ? 20 : 24, color: AppColors.primary),
+                child: Icon(icon, size: isLandscape ? 20 : 32, color: AppColors.primary),
               ),
-              SizedBox(width: isLandscape ? 10 : 12),
+              SizedBox(width: isLandscape ? 10 : 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -356,22 +356,22 @@ class _ActionCard extends StatelessWidget {
                     Text(
                       title,
                       style: TextStyle(
-                        fontSize: isLandscape ? 14 : 16,
+                        fontSize: isLandscape ? 14 : 18,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    SizedBox(height: isLandscape ? 2 : 2),
+                    SizedBox(height: isLandscape ? 2 : 4),
                     Text(
                       subtitle,
                       style: TextStyle(
-                        fontSize: isLandscape ? 11 : 12, 
+                        fontSize: isLandscape ? 11 : 14, 
                         color: Colors.grey.shade600,
                       ),
                     ),
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right, color: Colors.grey.shade400, size: isLandscape ? 18 : 20),
+              Icon(Icons.chevron_right, color: Colors.grey.shade400, size: isLandscape ? 18 : null),
             ],
           ),
         ),

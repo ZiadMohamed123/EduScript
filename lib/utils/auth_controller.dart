@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../services/auth_service.dart';
+import '../services/document_service.dart';
 import 'settings_controller.dart';
 import 'theme_controller.dart';
 
@@ -115,6 +116,11 @@ class AuthController {
     await _authService.logout();
     _isLoggedIn.value = false;
     _currentUser.value = null;
+    
+    // Clear document cache to prevent showing other users' documents
+    // Import and clear cache from DocumentService
+    final documentService = DocumentService();
+    documentService.clearCache();
     
     // Reset to default settings (light mode)
     _resetToDefaults();
