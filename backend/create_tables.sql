@@ -51,7 +51,6 @@ CREATE TABLE IF NOT EXISTS "Answer" (
 CREATE TABLE IF NOT EXISTS "Settings" (
   settings_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID UNIQUE NOT NULL REFERENCES "User"(user_id) ON DELETE CASCADE,
-  is_notification_open BOOLEAN DEFAULT TRUE,
   is_dark_mode_open BOOLEAN DEFAULT FALSE,
   language VARCHAR(50) DEFAULT 'English',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

@@ -79,6 +79,7 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
     }
   }
 
+  
   @override
   Widget build(BuildContext context) {
     final filteredDocuments = _documents.where((doc) {
@@ -193,30 +194,23 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
                     ? _buildEmptyState()
                     : LayoutBuilder(
                         builder: (context, constraints) {
-                          final isLandscape =
-                              MediaQuery.of(context).orientation ==
-                                  Orientation.landscape;
-                          final crossAxisCount = isLandscape
+                          final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+                          final crossAxisCount = isLandscape 
                               ? (constraints.maxWidth / 300).floor().clamp(2, 4)
                               : 1;
-
+                          
                           if (isLandscape && crossAxisCount > 1) {
                             // Grid layout for landscape - improved spacing
                             return GridView.builder(
                               padding: EdgeInsets.symmetric(
-                                horizontal:
-                                    constraints.maxWidth > 800 ? 32 : 16,
+                                horizontal: constraints.maxWidth > 800 ? 32 : 16,
                                 vertical: 16,
                               ),
-                              gridDelegate:
-                                  SliverGridDelegateWithFixedCrossAxisCount(
+                              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: crossAxisCount,
-                                crossAxisSpacing:
-                                    constraints.maxWidth > 800 ? 24 : 16,
-                                mainAxisSpacing:
-                                    constraints.maxWidth > 800 ? 24 : 16,
-                                childAspectRatio:
-                                    constraints.maxWidth > 800 ? 1.3 : 1.2,
+                                crossAxisSpacing: constraints.maxWidth > 800 ? 24 : 16,
+                                mainAxisSpacing: constraints.maxWidth > 800 ? 24 : 16,
+                                childAspectRatio: constraints.maxWidth > 800 ? 1.3 : 1.2,
                               ),
                               itemCount: filteredDocuments.length,
                               itemBuilder: (context, index) {
@@ -235,8 +229,7 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
                           } else {
                             // List layout for portrait
                             return ListView.builder(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 16),
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
                               itemCount: filteredDocuments.length,
                               itemBuilder: (context, index) {
                                 return _DocumentCard(
@@ -272,7 +265,9 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
           ),
           const SizedBox(height: 16),
           Text(
-            _searchQuery.isNotEmpty ? 'No documents found' : 'No documents yet',
+            _searchQuery.isNotEmpty
+                ? 'No documents found'
+                : 'No documents yet',
             style: TextStyle(
               fontSize: 18,
               color: Colors.grey.shade600,
@@ -341,7 +336,7 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
             title: const Text('Generate MCQ'),
             onTap: () async {
               Navigator.pop(context);
-
+              
               // Show loading dialog
               showDialog(
                 context: context,
@@ -365,9 +360,8 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
 
               try {
                 // Fetch the extracted text from the document
-                final extractedText =
-                    await _documentService.getExtractedText(document.id);
-
+                final extractedText = await _documentService.getExtractedText(document.id);
+                
                 // Close loading dialog
                 if (mounted) {
                   Navigator.pop(context);
@@ -377,8 +371,7 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text(
-                            'No text found in document. Please make sure the document has been processed.'),
+                        content: Text('No text found in document. Please make sure the document has been processed.'),
                         backgroundColor: Colors.orange,
                       ),
                     );
@@ -404,11 +397,10 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
                 // Close loading dialog if still open
                 if (mounted) {
                   Navigator.pop(context);
-
+                  
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content:
-                          Text('Failed to load document text: ${e.toString()}'),
+                      content: Text('Failed to load document text: ${e.toString()}'),
                       backgroundColor: Colors.red,
                     ),
                   );

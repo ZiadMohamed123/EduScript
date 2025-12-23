@@ -119,7 +119,6 @@ This document provides detailed information about all API endpoints, including t
   },
   "settings": {
     "user_id": "550e8400-e29b-41d4-a716-446655440000",
-    "is_notification_open": true,
     "is_dark_mode_open": false,
     "language": "English"
   }
@@ -218,35 +217,7 @@ profilePicture: <file>              // ❌ Optional (file)
 
 ---
 
-### 7. Toggle Notification Setting
-**Endpoint:** `PUT /user/settings/notification`
-
-**Description:** Toggle notification setting on/off.
-
-**Request Headers:**
-```json
-{
-  "Authorization": "Bearer <JWT_TOKEN>",
-  "Content-Type": "application/json"
-}
-```
-
-**Request Body:** None (endpoint toggles the current state)
-
-**Response (200 OK):**
-```json
-{
-  "message": "Notification setting updated",
-  "is_notification_open": true
-}
-```
-
-**Error Responses:**
-- **401 Unauthorized:** Missing or invalid JWT token
-
----
-
-### 8. Toggle Dark Mode Setting
+### 7. Toggle Dark Mode Setting
 **Endpoint:** `PUT /user/settings/darkmode`
 
 **Description:** Toggle dark mode setting on/off.
@@ -274,7 +245,7 @@ profilePicture: <file>              // ❌ Optional (file)
 
 ---
 
-### 9. Change Language Setting
+### 8. Change Language Setting
 **Endpoint:** `PUT /user/settings/language`
 
 **Description:** Change user's language preference.
@@ -310,7 +281,7 @@ profilePicture: <file>              // ❌ Optional (file)
 
 ## Document Endpoints
 
-### 10. Add Document
+### 9. Add Document
 **Endpoint:** `POST /document/add`
 
 **Description:** Upload a new document.
@@ -357,7 +328,7 @@ summary: "Document summary..."      // ❌ Optional (string)
 
 ---
 
-### 11. Get All Documents Metadata
+### 10. Get All Documents Metadata
 **Endpoint:** `GET /document/allDocsMetaData`
 
 **Description:** Retrieve metadata for all documents belonging to the user.
@@ -396,7 +367,7 @@ summary: "Document summary..."      // ❌ Optional (string)
 
 ---
 
-### 12. Get Document File
+### 11. Get Document File
 **Endpoint:** `GET /document/:documentID`
 
 **Description:** Gets a document file by ID.
@@ -423,7 +394,7 @@ documentID: "660e8400-e29b-41d4-a716-446655440001"  // ✅ Required (UUID string
 
 ---
 
-### 13. Update Document
+### 12. Update Document
 **Endpoint:** `PUT /document/edit/:documentID`
 
 **Description:** Update document details and/or file.
@@ -475,7 +446,7 @@ newDocument: <file>                 // ❌ Optional (file)
 
 ---
 
-### 14. Delete Document
+### 13. Delete Document
 **Endpoint:** `DELETE /document/delete/:documentID`
 
 **Description:** Delete a document.
@@ -510,7 +481,7 @@ documentID: "660e8400-e29b-41d4-a716-446655440001"  // ✅ Required (UUID string
 
 ## Quiz Endpoints
 
-### 15. Create Quiz
+### 14. Create Quiz
 **Endpoint:** `POST /quiz/add`
 
 **Description:** Create a new quiz with optional questions and answers.
@@ -594,7 +565,7 @@ documentID: "660e8400-e29b-41d4-a716-446655440001"  // ✅ Required (UUID string
 
 ---
 
-### 16. Get Quiz
+### 15. Get Quiz
 **Endpoint:** `GET /quiz/:documentID`
 
 **Description:** Retrieve all quizzes for a specific document.
@@ -654,7 +625,7 @@ documentID: "660e8400-e29b-41d4-a716-446655440001"  // ✅ Required (UUID string
 
 ---
 
-### 17. Update Quiz
+### 16. Update Quiz
 **Endpoint:** `PUT /quiz/update/:quizID`
 
 **Description:** Update quiz name and/or questions and answers.
@@ -740,7 +711,7 @@ quizID: "770e8400-e29b-41d4-a716-446655440002"      // ✅ Required (UUID string
 
 ---
 
-### 18. Delete Quiz
+### 17. Delete Quiz
 **Endpoint:** `DELETE /quiz/delete/:quizID`
 
 **Description:** Delete a quiz and all associated questions and answers.
@@ -828,7 +799,6 @@ quizID: "770e8400-e29b-41d4-a716-446655440002"      // ✅ Required (UUID string
 | `/user/update` | PUT | Yes | Form Data | Update profile |
 | `/user/profile-picture` | GET | Yes | None | Download picture |
 | `/user/delete` | DELETE | Yes | None | Delete account |
-| `/user/settings/notification` | PUT | Yes | JSON | Toggle notifications |
 | `/user/settings/darkmode` | PUT | Yes | JSON | Toggle dark mode |
 | `/user/settings/language` | PUT | Yes | JSON | Change language |
 | `/document/add` | POST | Yes | Form Data | Upload document |
