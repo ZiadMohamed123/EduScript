@@ -44,6 +44,7 @@ class _SignUpPageState extends State<SignUpPage> {
       if (!mounted) return;
 
       if (result.success) {
+
         // Show success message and navigate to login page
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

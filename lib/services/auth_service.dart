@@ -30,10 +30,13 @@ class User {
 
 /// Authentication Service
 /// Handles login, signup, logout, and session management
-/// Only stores JWT token locally, fetches user data from API
+/// Uses SharedPreferences for local storage (can be replaced with backend API)
 class AuthService {
   static const String _keyIsLoggedIn = 'is_logged_in';
-  static const String _keyAuthToken = 'auth_token';
+  static const String _keyUserId = 'user_id';
+  static const String _keyUserName = 'user_name';
+  static const String _keyUserEmail = 'user_email';
+  static const String _keyUsers = 'users'; // Store registered users
 
   static final AuthService _instance = AuthService._internal();
   factory AuthService() => _instance;
@@ -99,7 +102,10 @@ class AuthService {
   }) async {
     // Validate inputs
     if (name.trim().isEmpty) {
-      return AuthResult(success: false, message: 'Please enter your name');
+      return AuthResult(
+        success: false,
+        message: 'Please enter your name',
+      );
     }
 
     if (!_isValidEmail(email)) {
