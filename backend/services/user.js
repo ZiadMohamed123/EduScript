@@ -1,6 +1,5 @@
 import { User } from "../models/User.js";
 import { Settings } from "../models/Settings.js";
-import { Document } from "../models/Document.js";
 import path from "path";
 import fs from "fs";
 import { profilePicturesUploadDir } from "../config/multer.js";
@@ -22,7 +21,6 @@ export const getUser = async (req, res, next) => {
       settings = await Settings.findByUserId(user_id);
     } catch (error) {
       settings = {
-        is_notification_open: true,
         is_dark_mode_open: false,
         language: "English",
       };
@@ -79,21 +77,6 @@ export const deleteUser = async (req, res, next) => {
 
     res.json({
       message: "User deleted successfully",
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const toggleNotificationSetting = async (req, res, next) => {
-  try {
-    const user_id = req.user.user_id;
-
-    const updatedSettings = await Settings.toggleNotification(user_id);
-
-    res.json({
-      message: "Notification setting updated",
-      is_notification_open: updatedSettings.is_notification_open,
     });
   } catch (error) {
     next(error);
