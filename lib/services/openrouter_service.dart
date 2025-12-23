@@ -91,8 +91,8 @@ class OpenRouterService {
             errorMessage.isNotEmpty
                 ? errorMessage
                 : (errorCode != null
-                      ? 'Error $errorCode'
-                      : 'Failed to get response from OpenRouter'),
+                    ? 'Error $errorCode'
+                    : 'Failed to get response from OpenRouter'),
           );
         } catch (e) {
           // If it's already our custom exception, rethrow it
@@ -116,19 +116,36 @@ class OpenRouterService {
     String? context,
   }) async {
     final systemPrompt =
-        '''You are an AI study assistant specialized in creating comprehensive summaries for educational content. 
-Your summaries should be clear, well-structured, and highlight key concepts, important points, and practical applications.''';
+        '''You are an expert academic assistant specialized in creating clear, concise, and comprehensive summaries of educational documents. 
+Your goal is to help students understand and retain key information from their study materials.
 
-    final userPrompt = documentContent != null
-        ? '''Please provide a comprehensive summary of the following document titled "${documentTitle}":
-        
+Guidelines:
+- Create a well-structured summary that captures the essence of the document
+- Focus on main concepts, key points, and important details
+- Use clear, academic language
+- Organize information logically with proper headings and sections
+- Highlight definitions, formulas, and critical information
+- Make it easy to read and study from
+- Keep it comprehensive but concise
+- Return only the summary text, no meta-commentary or explanations''';
+
+    final userPrompt = documentContent != null && documentContent.isNotEmpty
+        ? '''Please create a comprehensive, well-structured summary of the following document titled "${documentTitle}".
+
+Document Content:
 $documentContent
 
-Include:
-- Key points and main concepts
-- Important definitions or formulas
-- Practical applications
-- Study recommendations'''
+Requirements:
+1. Start with a brief overview of the document's main topic and purpose
+2. Organize the summary into clear sections with headings
+3. Include all key concepts, definitions, and important information
+4. Highlight any formulas, equations, or technical terms
+5. Summarize main points and supporting details
+6. Make it study-friendly and easy to review
+7. Use clear formatting with headings, bullet points, and paragraphs
+8. Ensure the summary is comprehensive enough to be useful for studying
+
+Format the summary with clear sections and proper structure. Return only the summary text.'''
         : '''Please provide a summary for the document "${documentTitle}". 
 ${context != null ? 'Context: $context' : 'Generate a general summary structure that would be helpful for studying this topic.'}''';
 
@@ -137,103 +154,8 @@ ${context != null ? 'Context: $context' : 'Generate a general summary structure 
         {'role': 'user', 'content': userPrompt},
       ],
       systemPrompt: systemPrompt,
-      temperature: 0.5,
-    );
-  }
-
-  /// Generate MCQ questions
-  Future<String> generateMCQ({
-    required String documentTitle,
-    String? documentContent,
-    int numQuestions = 5,
-  }) async {
-    final systemPrompt =
-        '''You are an AI tutor that creates high-quality multiple-choice questions for educational purposes.
-Generate questions that test understanding, not just memorization. Include 4 options (A, B, C, D) and clearly indicate the correct answer.''';
-
-    final userPrompt = documentContent != null
-        ? '''Based on the following document "${documentTitle}", generate $numQuestions multiple-choice questions:
-        
-$documentContent
-
-Format each question as:
-**Question X:**
-[Question text]
-A) [Option A]
-B) [Option B]
-C) [Option C]
-D) [Option D]
-**Answer:** [Correct option]'''
-        : '''Generate $numQuestions multiple-choice questions based on the document "${documentTitle}".
-Format each question with 4 options (A, B, C, D) and indicate the correct answer.''';
-
-    return await chat(
-      messages: [
-        {'role': 'user', 'content': userPrompt},
-      ],
-      systemPrompt: systemPrompt,
-      temperature: 0.8,
-    );
-  }
-
-  /// Explain a concept
-  Future<String> explainConcept({
-    required String concept,
-    String? documentContext,
-    String? documentTitle,
-  }) async {
-    final systemPrompt =
-        '''You are an AI tutor that explains concepts clearly and comprehensively.
-Break down complex ideas into understandable parts, use examples, and relate concepts to practical applications.''';
-
-    final userPrompt = documentContext != null
-        ? '''Explain the concept "${concept}" based on the following context from "${documentTitle}":
-        
-$documentContext
-
-Provide:
-1. A clear definition
-2. Key components or principles
-3. Examples and applications
-4. How it relates to other concepts'''
-        : '''Explain the concept "${concept}" in detail. Provide a clear definition, key components, examples, and practical applications.''';
-
-    return await chat(
-      messages: [
-        {'role': 'user', 'content': userPrompt},
-      ],
-      systemPrompt: systemPrompt,
-      temperature: 0.7,
-    );
-  }
-
-  /// Generate study notes
-  Future<String> generateStudyNotes({
-    required String documentTitle,
-    String? documentContent,
-  }) async {
-    final systemPrompt =
-        '''You are an AI study assistant that creates organized, effective study notes.
-Structure notes with clear headings, bullet points, key definitions, and important formulas.''';
-
-    final userPrompt = documentContent != null
-        ? '''Create comprehensive study notes for "${documentTitle}":
-        
-$documentContent
-
-Include:
-- Main topics and subtopics
-- Key definitions and formulas
-- Important examples
-- Study tips and mnemonics'''
-        : '''Create study notes structure for "${documentTitle}". Include main topics, key points, definitions, and study recommendations.''';
-
-    return await chat(
-      messages: [
-        {'role': 'user', 'content': userPrompt},
-      ],
-      systemPrompt: systemPrompt,
-      temperature: 0.6,
+      temperature:
+          0.3, // Lower temperature for more focused, consistent summaries
     );
   }
 

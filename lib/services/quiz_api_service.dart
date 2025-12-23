@@ -17,11 +17,6 @@ class QuizApiService {
       return '';
     }
   }
-
-  /// Base URL of your Node backend.
-  /// 
-  /// If BACKEND_BASE_URL is set in .env, it will be used.
-  /// Otherwise, automatically detects the platform:
   /// - Android Emulator: http://10.0.2.2:5000
   /// - Chrome/Web: http://localhost:5000
   /// - iOS Simulator: http://localhost:5000
@@ -55,7 +50,6 @@ class QuizApiService {
           return 'http://localhost:5000';
         }
       } catch (e) {
-        // Platform not available (shouldn't happen, but fallback)
         return 'http://localhost:5000';
       }
     }

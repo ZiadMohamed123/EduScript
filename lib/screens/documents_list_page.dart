@@ -82,146 +82,161 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
   
   @override
   Widget build(BuildContext context) {
-    final filteredDocuments = _documents.where((doc) {
-      return doc.title.toLowerCase().contains(_searchQuery.toLowerCase());
-    }).toList();
+    // For recent documents, skip filtering and sorting
+    final documentsToShow = widget.showRecentsOnly
+        ? _documents
+        : _documents.where((doc) {
+            return doc.title.toLowerCase().contains(_searchQuery.toLowerCase());
+          }).toList();
 
-    // Sort documents
-    filteredDocuments.sort((a, b) {
-      if (_sortBy == 'date') {
-        return b.dateCreated.compareTo(a.dateCreated);
-      } else {
-        return a.title.compareTo(b.title);
-      }
-    });
+    // Sort documents (only for My Documents, not Recents)
+    if (!widget.showRecentsOnly) {
+      documentsToShow.sort((a, b) {
+        if (_sortBy == 'date') {
+          return b.dateCreated.compareTo(a.dateCreated);
+        } else {
+          return a.title.compareTo(b.title);
+        }
+      });
+    }
 
     return Scaffold(
       appBar: AppBar(
         title:
             Text(widget.showRecentsOnly ? 'Recent Documents' : 'My Documents'),
         elevation: 0,
-        actions: [
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.sort),
-            onSelected: (value) {
-              setState(() {
-                _sortBy = value;
-              });
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'date',
-                child: Row(
-                  children: [
-                    Icon(Icons.calendar_today, size: 20),
-                    SizedBox(width: 8),
-                    Text('Sort by Date'),
+        actions: widget.showRecentsOnly
+            ? null
+            : [
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.sort),
+                  onSelected: (value) {
+                    setState(() {
+                      _sortBy = value;
+                    });
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'date',
+                      child: Row(
+                        children: [
+                          Icon(Icons.calendar_today, size: 20),
+                          SizedBox(width: 8),
+                          Text('Sort by Date'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'name',
+                      child: Row(
+                        children: [
+                          Icon(Icons.sort_by_alpha, size: 20),
+                          SizedBox(width: 8),
+                          Text('Sort by Name'),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
-              ),
-              const PopupMenuItem(
-                value: 'name',
-                child: Row(
-                  children: [
-                    Icon(Icons.sort_by_alpha, size: 20),
-                    SizedBox(width: 8),
-                    Text('Sort by Name'),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
+              ],
       ),
       body: Column(
         children: [
-          // Search Bar
-          Builder(
-            builder: (context) {
-              final scheme = Theme.of(context).colorScheme;
-              final isDark = scheme.brightness == Brightness.dark;
-              return Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: TextField(
-                  onChanged: (value) {
-                    setState(() {
-                      _searchQuery = value;
-                    });
-                  },
-                  style: TextStyle(color: scheme.onSurface),
-                  decoration: InputDecoration(
-                    hintText: 'Search documents...',
-                    hintStyle: TextStyle(
-                        color: scheme.onSurfaceVariant.withOpacity(0.6)),
-                    prefixIcon: Icon(Icons.search, color: scheme.primary),
-                    suffixIcon: _searchQuery.isNotEmpty
-                        ? IconButton(
-                            icon: Icon(Icons.clear,
-                                color: scheme.onSurfaceVariant),
-                            onPressed: () {
-                              setState(() {
-                                _searchQuery = '';
-                              });
-                            },
-                          )
-                        : null,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: scheme.outline),
+          // Search Bar (only show for My Documents, not Recents)
+          if (!widget.showRecentsOnly)
+            Builder(
+              builder: (context) {
+                final scheme = Theme.of(context).colorScheme;
+                final isDark = scheme.brightness == Brightness.dark;
+                return Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: TextField(
+                    onChanged: (value) {
+                      setState(() {
+                        _searchQuery = value;
+                      });
+                    },
+                    style: TextStyle(color: scheme.onSurface),
+                    decoration: InputDecoration(
+                      hintText: 'Search documents...',
+                      hintStyle: TextStyle(
+                          color: scheme.onSurfaceVariant.withOpacity(0.6)),
+                      prefixIcon: Icon(Icons.search, color: scheme.primary),
+                      suffixIcon: _searchQuery.isNotEmpty
+                          ? IconButton(
+                              icon: Icon(Icons.clear,
+                                  color: scheme.onSurfaceVariant),
+                              onPressed: () {
+                                setState(() {
+                                  _searchQuery = '';
+                                });
+                              },
+                            )
+                          : null,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: scheme.outline),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: scheme.outline),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: scheme.primary, width: 2),
+                      ),
+                      filled: true,
+                      fillColor:
+                          scheme.surfaceVariant.withOpacity(isDark ? 0.3 : 0.7),
                     ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: scheme.outline),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: scheme.primary, width: 2),
-                    ),
-                    filled: true,
-                    fillColor:
-                        scheme.surfaceVariant.withOpacity(isDark ? 0.3 : 0.7),
                   ),
-                ),
-              );
-            },
-          ),
+                );
+              },
+            ),
 
           // Documents List
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
-                : filteredDocuments.isEmpty
+                : documentsToShow.isEmpty
                     ? _buildEmptyState()
                     : LayoutBuilder(
                         builder: (context, constraints) {
-                          final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
-                          final crossAxisCount = isLandscape 
+                          final isLandscape =
+                              MediaQuery.of(context).orientation ==
+                                  Orientation.landscape;
+                          final crossAxisCount = isLandscape
                               ? (constraints.maxWidth / 300).floor().clamp(2, 4)
                               : 1;
-                          
+
                           if (isLandscape && crossAxisCount > 1) {
                             // Grid layout for landscape - improved spacing
                             return GridView.builder(
                               padding: EdgeInsets.symmetric(
-                                horizontal: constraints.maxWidth > 800 ? 32 : 16,
+                                horizontal:
+                                    constraints.maxWidth > 800 ? 32 : 16,
                                 vertical: 16,
                               ),
-                              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                              gridDelegate:
+                                  SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: crossAxisCount,
-                                crossAxisSpacing: constraints.maxWidth > 800 ? 24 : 16,
-                                mainAxisSpacing: constraints.maxWidth > 800 ? 24 : 16,
-                                childAspectRatio: constraints.maxWidth > 800 ? 1.3 : 1.2,
+                                crossAxisSpacing:
+                                    constraints.maxWidth > 800 ? 24 : 16,
+                                mainAxisSpacing:
+                                    constraints.maxWidth > 800 ? 24 : 16,
+                                childAspectRatio:
+                                    constraints.maxWidth > 800 ? 1.3 : 1.2,
                               ),
-                              itemCount: filteredDocuments.length,
+                              itemCount: documentsToShow.length,
                               itemBuilder: (context, index) {
                                 return _DocumentCard(
-                                  document: filteredDocuments[index],
+                                  document: documentsToShow[index],
                                   onTap: () {
                                     _showDocumentOptions(
-                                        context, filteredDocuments[index]);
+                                        context, documentsToShow[index]);
                                   },
                                   onDelete: () {
-                                    _deleteDocument(filteredDocuments[index]);
+                                    _deleteDocument(documentsToShow[index]);
                                   },
                                 );
                               },
@@ -229,17 +244,18 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
                           } else {
                             // List layout for portrait
                             return ListView.builder(
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
-                              itemCount: filteredDocuments.length,
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 16),
+                              itemCount: documentsToShow.length,
                               itemBuilder: (context, index) {
                                 return _DocumentCard(
-                                  document: filteredDocuments[index],
+                                  document: documentsToShow[index],
                                   onTap: () {
                                     _showDocumentOptions(
-                                        context, filteredDocuments[index]);
+                                        context, documentsToShow[index]);
                                   },
                                   onDelete: () {
-                                    _deleteDocument(filteredDocuments[index]);
+                                    _deleteDocument(documentsToShow[index]);
                                   },
                                 );
                               },
@@ -265,9 +281,11 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
           ),
           const SizedBox(height: 16),
           Text(
-            _searchQuery.isNotEmpty
-                ? 'No documents found'
-                : 'No documents yet',
+            widget.showRecentsOnly
+                ? 'No recent documents'
+                : (_searchQuery.isEmpty
+                    ? 'No scanned documents yet'
+                    : 'No documents found'),
             style: TextStyle(
               fontSize: 18,
               color: Colors.grey.shade600,
@@ -275,13 +293,12 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
           ),
           const SizedBox(height: 8),
           Text(
-            _searchQuery.isNotEmpty
-                ? 'Try a different search term'
-                : 'Upload a document to get started',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey.shade500,
-            ),
+            widget.showRecentsOnly
+                ? 'Recent documents will appear here'
+                : (_searchQuery.isEmpty
+                    ? 'Start by scanning your first document'
+                    : 'Try a different search term'),
+            style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
           ),
         ],
       ),
@@ -294,65 +311,50 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(height: 12),
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade300,
-              borderRadius: BorderRadius.circular(2),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.quiz),
+              title: const Text('View Quizzes'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => QuizGeneratorPage(
+                      documentId: document.id,
+                      documentTitle: document.title,
+                    ),
+                  ),
+                );
+              },
             ),
-          ),
-          const SizedBox(height: 20),
-          ListTile(
-            leading: const Icon(Icons.visibility),
-            title: const Text('View Document'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.pushNamed(
-                context,
-                '/document-viewer',
-                arguments: document,
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.summarize),
-            title: const Text('View Summary'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.pushNamed(
-                context,
-                '/document-summary',
-                arguments: document,
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.quiz),
-            title: const Text('Generate MCQ'),
-            onTap: () async {
-              Navigator.pop(context);
-              
-              // Show loading dialog
-              showDialog(
-                context: context,
-                barrierDismissible: false,
-                builder: (context) => const Center(
-                  child: Card(
-                    child: Padding(
-                      padding: EdgeInsets.all(20.0),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          CircularProgressIndicator(),
-                          SizedBox(height: 16),
-                          Text('Loading document text...'),
-                        ],
-                      ),
+            ListTile(
+              leading: const Icon(Icons.summarize),
+              title: const Text('View Summary'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(
+                  context,
+                  '/document-summary',
+                  arguments: document,
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.add_circle_outline),
+              title: const Text('Generate Quiz'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => QuizGeneratorPage(
+                      documentId: document.id,
+                      documentTitle: document.title,
                     ),
                   ),
                 ),
@@ -430,37 +432,83 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
   }
 
   void _deleteDocument(Document document) {
+    // Get ScaffoldMessenger reference before async operations
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Delete Document'),
-        content: Text('Are you sure you want to delete "${document.title}"?'),
+        content: Text(
+            'Are you sure you want to delete "${document.title}"?\n\nThis action cannot be undone.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () async {
-              Navigator.pop(context);
+              Navigator.pop(dialogContext);
+
+              // Show loading indicator
+              if (mounted) {
+                scaffoldMessenger.showSnackBar(
+                  const SnackBar(
+                    content: Row(
+                      children: [
+                        SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        ),
+                        SizedBox(width: 16),
+                        Text('Deleting document...'),
+                      ],
+                    ),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              }
+
               try {
                 await _documentService.deleteDocument(document.id);
                 await _loadDocuments();
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  scaffoldMessenger.hideCurrentSnackBar();
+                  scaffoldMessenger.showSnackBar(
                     const SnackBar(
                       content: Text('Document deleted successfully'),
                       backgroundColor: Colors.green,
+                      duration: Duration(seconds: 2),
                     ),
                   );
                 }
               } catch (e) {
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  scaffoldMessenger.hideCurrentSnackBar();
+                  String errorMessage = 'Failed to delete document';
+                  final errorString = e.toString();
+                  if (errorString.contains('Unauthorized')) {
+                    errorMessage = 'Session expired. Please login again.';
+                  } else if (errorString.contains('not found')) {
+                    errorMessage =
+                        'Document not found. It may have already been deleted.';
+                  } else if (errorString.contains('Could not connect')) {
+                    errorMessage =
+                        'Could not connect to server. Please check your connection.';
+                  } else if (errorString.contains('Exception: ')) {
+                    errorMessage = errorString.replaceFirst('Exception: ', '');
+                  }
+
+                  scaffoldMessenger.showSnackBar(
                     SnackBar(
-                      content:
-                          Text('Failed to delete document: ${e.toString()}'),
+                      content: Text(errorMessage),
                       backgroundColor: Colors.red,
+                      duration: const Duration(seconds: 3),
                     ),
                   );
                 }

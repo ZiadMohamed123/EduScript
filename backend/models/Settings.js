@@ -17,7 +17,6 @@ export class Settings {
       .from("Settings")
       .insert({
         user_id: user_id,
-        is_notification_open: settingsData.isNotificationOpen ?? true,
         is_dark_mode_open: settingsData.isDarkModeOpen ?? false,
         language: settingsData.Language ?? "English",
       })
@@ -38,13 +37,6 @@ export class Settings {
 
     if (error) throw error;
     return data;
-  }
-
-  static async toggleNotification(user_id) {
-    const settings = await this.findByUserId(user_id);
-    return await this.update(user_id, {
-      is_notification_open: !settings.is_notification_open,
-    });
   }
 
   static async toggleDarkMode(user_id) {

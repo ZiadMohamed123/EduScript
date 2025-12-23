@@ -29,8 +29,7 @@ class User {
 }
 
 /// Authentication Service
-/// Handles login, signup, logout, and session management
-/// Uses SharedPreferences for local storage (can be replaced with backend API)
+/// stores JWT token locally, fetches user data from API
 class AuthService {
   static const String _keyIsLoggedIn = 'is_logged_in';
   static const String _keyUserId = 'user_id';
@@ -55,8 +54,6 @@ class AuthService {
     if (token == null || token.isEmpty) {
       return false;
     }
-
-    // Optionally verify token is valid by making a lightweight API call
     // For now, just check if token exists
     return true;
   }
@@ -126,7 +123,7 @@ class AuthService {
       final response = await HttpClient.post(
         '/auth/signup',
         body: {'email': email, 'password': password, 'name': name},
-        includeAuth: false, // Signup endpoint doesn't need auth
+        includeAuth: false,
       );
 
       if (response.statusCode == 201) {
@@ -136,7 +133,6 @@ class AuthService {
 
         // Note: signup endpoint does not return token
         // User needs to login after signup to get JWT token
-        // Don't mark as logged in - user must login separately
 
         return AuthResult(
           success: true,
@@ -161,9 +157,14 @@ class AuthService {
         );
       }
     } catch (e) {
+      // Preserve detailed error messages from HttpClient
+      String errorMessage = e.toString();
+      if (errorMessage.contains('Exception: ')) {
+        errorMessage = errorMessage.replaceFirst('Exception: ', '');
+      }
       return AuthResult(
         success: false,
-        message: 'Could not connect to server. Please try again.',
+        message: errorMessage,
       );
     }
   }
@@ -190,7 +191,7 @@ class AuthService {
       final response = await HttpClient.post(
         '/auth/login',
         body: {'email': email, 'password': password},
-        includeAuth: false, // Login endpoint doesn't need auth
+        includeAuth: false,
       );
 
       if (response.statusCode == 200) {
@@ -225,9 +226,14 @@ class AuthService {
         );
       }
     } catch (e) {
+      // Preserve detailed error messages from HttpClient
+      String errorMessage = e.toString();
+      if (errorMessage.contains('Exception: ')) {
+        errorMessage = errorMessage.replaceFirst('Exception: ', '');
+      }
       return AuthResult(
         success: false,
-        message: 'Could not connect to server. Please try again.',
+        message: errorMessage,
       );
     }
   }
