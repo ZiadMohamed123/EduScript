@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:quiz_generator/screens/SavedQuizzesListPage.dart';
 import 'screens/splash_screen.dart';
 import 'screens/home_page.dart';
 import 'screens/settings_page.dart';
@@ -56,6 +57,7 @@ class MainApp extends StatelessWidget {
           routes: {
             '/': (context) => const SplashScreen(),
             '/login': (context) => const LoginPage(),
+            '/saved-quizzes': (context) => const SavedQuizzesListPage(),
             '/signup': (context) => const SignUpPage(),
             '/home': (context) => const AuthGuard(child: HomePage()),
             '/settings': (context) => const AuthGuard(child: SettingsPage()),

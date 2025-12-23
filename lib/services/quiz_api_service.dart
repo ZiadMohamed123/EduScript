@@ -390,6 +390,157 @@ Platform: ${kIsWeb ? 'Web/Chrome' : Platform.isAndroid ? 'Android' : Platform.is
     }
   }
 
+  /// Get all saved quizzes for the current user
+  Future<List<Map<String, dynamic>>> getAllQuizzes(String authToken) async {
+    final baseUrl = backendBaseUrl;
+    if (baseUrl.isEmpty) {
+      throw Exception(
+        'BACKEND_BASE_URL is not set in .env.\n'
+        'Add e.g. BACKEND_BASE_URL=http://localhost:5000 to your .env file.',
+      );
+    }
+
+    if (authToken.isEmpty) {
+      throw Exception('Missing authentication token');
+    }
+
+    final url = Uri.parse('$baseUrl/quiz/all');
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $authToken',
+        },
+      ).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw Exception(
+            'Connection timeout. Is your backend server running?\n\n'
+            'Make sure your backend is running: cd backend && npm start'
+          );
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final quizzes = data['quizzes'] as List<dynamic>? ?? [];
+        return quizzes.map((q) => q as Map<String, dynamic>).toList();
+      } else if (response.statusCode == 401) {
+        throw Exception('Unauthorized: Please login again');
+      } else {
+        throw Exception('Failed to fetch quizzes: ${response.statusCode}');
+      }
+    } catch (e) {
+      if (e.toString().contains('timeout') || e.toString().contains('Connection')) {
+        rethrow;
+      }
+      throw Exception('Error fetching quizzes: $e');
+    }
+  }
+
+  /// Get details for a specific quiz including all questions
+  Future<Map<String, dynamic>> getQuizDetails(String quizId, String authToken) async {
+    final baseUrl = backendBaseUrl;
+    if (baseUrl.isEmpty) {
+      throw Exception(
+        'BACKEND_BASE_URL is not set in .env.\n'
+        'Add e.g. BACKEND_BASE_URL=http://localhost:5000 to your .env file.',
+      );
+    }
+
+    if (authToken.isEmpty) {
+      throw Exception('Missing authentication token');
+    }
+
+    final url = Uri.parse('$baseUrl/quiz/$quizId');
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $authToken',
+        },
+      ).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw Exception(
+            'Connection timeout. Is your backend server running?\n\n'
+            'Make sure your backend is running: cd backend && npm start'
+          );
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return data['quiz'] as Map<String, dynamic>;
+      } else if (response.statusCode == 401) {
+        throw Exception('Unauthorized: Please login again');
+      } else if (response.statusCode == 404) {
+        throw Exception('Quiz not found');
+      } else {
+        throw Exception('Failed to fetch quiz details: ${response.statusCode}');
+      }
+    } catch (e) {
+      if (e.toString().contains('timeout') || e.toString().contains('Connection')) {
+        rethrow;
+      }
+      throw Exception('Error fetching quiz details: $e');
+    }
+  }
+
+  /// Delete a saved quiz
+  Future<void> deleteQuiz(String quizId, String authToken) async {
+    final baseUrl = backendBaseUrl;
+    if (baseUrl.isEmpty) {
+      throw Exception(
+        'BACKEND_BASE_URL is not set in .env.\n'
+        'Add e.g. BACKEND_BASE_URL=http://localhost:5000 to your .env file.',
+      );
+    }
+
+    if (authToken.isEmpty) {
+      throw Exception('Missing authentication token');
+    }
+
+    final url = Uri.parse('$baseUrl/quiz/$quizId');
+
+    try {
+      final response = await http.delete(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $authToken',
+        },
+      ).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw Exception(
+            'Connection timeout. Is your backend server running?\n\n'
+            'Make sure your backend is running: cd backend && npm start'
+          );
+        },
+      );
+
+      if (response.statusCode == 200) {
+        return;
+      } else if (response.statusCode == 401) {
+        throw Exception('Unauthorized: Please login again');
+      } else if (response.statusCode == 404) {
+        throw Exception('Quiz not found');
+      } else {
+        throw Exception('Failed to delete quiz: ${response.statusCode}');
+      }
+    } catch (e) {
+      if (e.toString().contains('timeout') || e.toString().contains('Connection')) {
+        rethrow;
+      }
+      throw Exception('Error deleting quiz: $e');
+    }
+  }
+
   Future<Map<String, dynamic>> submitQuiz(List<Question> questions) async {
     // Validate API key before making request
     final key = apiKey;
@@ -549,5 +700,67 @@ Return ONLY the JSON object, no markdown code blocks or explanations.''';
       'correctAnswers': result['correctAnswers'] as int? ?? 0,
       'feedback': result['feedback'] as List<dynamic>? ?? [],
     };
+  }
+  /// NEW: Get quizzes by document ID
+  Future<List<Map<String, dynamic>>> getQuizzesByDocument(String documentId, String authToken) async {
+    final baseUrl = backendBaseUrl;
+    if (baseUrl.isEmpty) {
+      throw Exception(
+        'BACKEND_BASE_URL is not set in .env.\n'
+        'Add e.g. BACKEND_BASE_URL=http://localhost:5000 to your .env file.',
+      );
+    }
+
+    if (authToken.isEmpty) {
+      throw Exception('Missing authentication token');
+    }
+
+    final url = Uri.parse('$baseUrl/quiz/document/$documentId');
+
+    print('🌐 Making request to: $url');
+    print('🔑 Token (first 20 chars): ${authToken.substring(0, authToken.length > 20 ? 20 : authToken.length)}...');
+    print('📋 Headers: Authorization: Bearer $authToken');
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $authToken',
+        },
+      ).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw Exception(
+            'Connection timeout. Is your backend server running?\n\n'
+            'Make sure your backend is running: cd backend && npm start'
+          );
+        },
+      );
+
+      print('📥 Response status: ${response.statusCode}');
+      print('📥 Response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final quizzes = data['quizzes'] as List<dynamic>? ?? [];
+        return quizzes.map((q) => q as Map<String, dynamic>).toList();
+      } else if (response.statusCode == 401) {
+        throw Exception('Unauthorized: Please login again');
+      } else if (response.statusCode == 404) {
+        // No quizzes found for this document - return empty list
+        return [];
+      } else if (response.statusCode == 500) {
+        throw Exception('Server error: ${response.body}');
+      } else {
+        throw Exception('Failed to fetch quizzes: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      print('❌ Error in getQuizzesByDocument API call: $e');
+      if (e.toString().contains('timeout') || e.toString().contains('Connection')) {
+        rethrow;
+      }
+      throw Exception('Error fetching quizzes: $e');
+    }
   }
 }
