@@ -24,24 +24,17 @@ dependencies:
   printing: ^5.14.2
   http_parser: ^4.1.2
 
-
   google_mlkit_document_scanner: ^0.4.0
   cupertino_icons: ^1.0.6
-  google_mlkit_commons: ^0.4.0
   pdf: ^3.10.8
-  path_provider: ^2.1.2
 
-  # HTTP requests
-  http: ^1.2.1
 
-  # Environment variables (.env)
-  flutter_dotenv: ^5.1.0
+
+
 
   # JSON model support (if you need)
   collection: ^1.17.2
 
-  # State or utility (optional)
-  provider: ^6.0.5
 
 dev_dependencies:
   flutter_test:

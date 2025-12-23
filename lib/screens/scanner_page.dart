@@ -1,6 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import '../services/docScanner_service.dart';
 import '../services/docCreate_service.dart';
+import '../providers/document_provider.dart';
+import 'package:provider/provider.dart';
 
 class ScannerPage extends StatefulWidget {
   const ScannerPage({super.key});
@@ -14,8 +18,10 @@ class _ScannerPageState extends State<ScannerPage> {
   String _status = 'ready to scan';
   String _resultText = 'Press the button to launch the document scanner.';
   bool _isScanning = false;
+
   Future<void> _startScan() async {
     if (_isScanning) return;
+
     setState(() {
       _isScanning = true;
       _status = 'launching scanner...';
@@ -30,45 +36,54 @@ class _ScannerPageState extends State<ScannerPage> {
       } else {
         setState(() {
           _status = 'canceled';
-          _resultText = 'user canceld';
+          _resultText = 'User canceled';
           _isScanning = false;
         });
       }
     } catch (e) {
       setState(() {
         _status = 'failed';
-        _resultText = 'error scan failed';
+        _resultText = 'Error: scan failed';
         _isScanning = false;
       });
     }
   }
 
-  Future<void> _processScannedImage(String imagePath) async {
+ Future<void> _processScannedImage(String imagePath) async {
+  setState(() {
+    _status = 'creating PDF...';
+  });
+
+  try {
+    // 1️⃣ Create PDF from scanned image
+    final String pdfPath = await _fileService.CreatePdfFromImages([imagePath]);
+
+    // 2️⃣ Update provider's documentFile so extractStructured can run
+    final provider = Provider.of<DocumentProvider>(context, listen: false);
+    provider.documentFile = File(pdfPath);
+
+    // 3️⃣ Extract text / structured data from scanned image
+    await provider.extractStructured(File(imagePath));
+
+    // 4️⃣ Update UI
     setState(() {
-      _status = 'creating pdf....';
+      _status = 'Scan and extraction completed';
+      _resultText = 'PDF saved at:\n$pdfPath';
+      _isScanning = false;
     });
-    try {
-      final String pdfPath =
-          await _fileService.CreatePdfFromImages([imagePath]);
-      setState(() {
-        _status = 'scanning completed, pdf created';
-        _resultText = 'Pdf saved successfully at:\n$pdfPath';
-        _isScanning = false;
-      });
-    } catch (e) {
-      setState(() {
-        _status = 'pdf error';
-        _resultText = 'pdf failed: $e';
-        _isScanning = false;
-      });
-    }
+  } catch (e) {
+    setState(() {
+      _status = 'Error';
+      _resultText = 'Scan or extraction failed: $e';
+      _isScanning = false;
+    });
   }
-
+}
   @override
-  Widget build(BuildContext content) {
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('doc scanner'),
+        title: const Text('Document Scanner'),
         backgroundColor: Colors.blue,
       ),
       body: Center(
@@ -79,9 +94,8 @@ class _ScannerPageState extends State<ScannerPage> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
               Text(
-                'status: $_status',
-                style:
-                    const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                'Status: $_status',
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 20),
@@ -94,7 +108,9 @@ class _ScannerPageState extends State<ScannerPage> {
                 child: SelectableText(
                   _resultText,
                   style: TextStyle(
-                      color: Colors.grey.shade700, fontStyle: FontStyle.italic),
+                    color: Colors.grey.shade700,
+                    fontStyle: FontStyle.italic,
+                  ),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -108,8 +124,7 @@ class _ScannerPageState extends State<ScannerPage> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.document_scanner),
-                label:
-                    Text(_isScanning ? 'scanning...' : 'start document scan'),
+                label: Text(_isScanning ? 'Scanning...' : 'Start Document Scan'),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 15),
                   backgroundColor: Colors.blue,

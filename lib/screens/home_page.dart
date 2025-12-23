@@ -62,7 +62,7 @@ class HomePage extends StatelessWidget {
               // Main Action Button
                 ElevatedButton.icon(
                 onPressed: () {
-                  Navigator.pushNamed(context, '/extracted');
+                  Navigator.pushNamed(context, '/scanner');
                 },
                 icon: const Icon(Icons.camera_alt, size: 28),
                 label: const Padding(
