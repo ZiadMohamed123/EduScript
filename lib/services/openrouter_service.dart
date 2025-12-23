@@ -91,8 +91,8 @@ class OpenRouterService {
             errorMessage.isNotEmpty
                 ? errorMessage
                 : (errorCode != null
-                      ? 'Error $errorCode'
-                      : 'Failed to get response from OpenRouter'),
+                    ? 'Error $errorCode'
+                    : 'Failed to get response from OpenRouter'),
           );
         } catch (e) {
           // If it's already our custom exception, rethrow it
@@ -154,103 +154,8 @@ ${context != null ? 'Context: $context' : 'Generate a general summary structure 
         {'role': 'user', 'content': userPrompt},
       ],
       systemPrompt: systemPrompt,
-      temperature: 0.3, // Lower temperature for more focused, consistent summaries
-    );
-  }
-
-  /// Generate MCQ questions
-  Future<String> generateMCQ({
-    required String documentTitle,
-    String? documentContent,
-    int numQuestions = 5,
-  }) async {
-    final systemPrompt =
-        '''You are an AI tutor that creates high-quality multiple-choice questions for educational purposes.
-Generate questions that test understanding, not just memorization. Include 4 options (A, B, C, D) and clearly indicate the correct answer.''';
-
-    final userPrompt = documentContent != null
-        ? '''Based on the following document "${documentTitle}", generate $numQuestions multiple-choice questions:
-        
-$documentContent
-
-Format each question as:
-**Question X:**
-[Question text]
-A) [Option A]
-B) [Option B]
-C) [Option C]
-D) [Option D]
-**Answer:** [Correct option]'''
-        : '''Generate $numQuestions multiple-choice questions based on the document "${documentTitle}".
-Format each question with 4 options (A, B, C, D) and indicate the correct answer.''';
-
-    return await chat(
-      messages: [
-        {'role': 'user', 'content': userPrompt},
-      ],
-      systemPrompt: systemPrompt,
-      temperature: 0.8,
-    );
-  }
-
-  /// Explain a concept
-  Future<String> explainConcept({
-    required String concept,
-    String? documentContext,
-    String? documentTitle,
-  }) async {
-    final systemPrompt =
-        '''You are an AI tutor that explains concepts clearly and comprehensively.
-Break down complex ideas into understandable parts, use examples, and relate concepts to practical applications.''';
-
-    final userPrompt = documentContext != null
-        ? '''Explain the concept "${concept}" based on the following context from "${documentTitle}":
-        
-$documentContext
-
-Provide:
-1. A clear definition
-2. Key components or principles
-3. Examples and applications
-4. How it relates to other concepts'''
-        : '''Explain the concept "${concept}" in detail. Provide a clear definition, key components, examples, and practical applications.''';
-
-    return await chat(
-      messages: [
-        {'role': 'user', 'content': userPrompt},
-      ],
-      systemPrompt: systemPrompt,
-      temperature: 0.7,
-    );
-  }
-
-  /// Generate study notes
-  Future<String> generateStudyNotes({
-    required String documentTitle,
-    String? documentContent,
-  }) async {
-    final systemPrompt =
-        '''You are an AI study assistant that creates organized, effective study notes.
-Structure notes with clear headings, bullet points, key definitions, and important formulas.''';
-
-    final userPrompt = documentContent != null
-        ? '''Create comprehensive study notes for "${documentTitle}":
-        
-$documentContent
-
-Include:
-- Main topics and subtopics
-- Key definitions and formulas
-- Important examples
-- Study tips and mnemonics'''
-        : '''Create study notes structure for "${documentTitle}". Include main topics, key points, definitions, and study recommendations.''';
-
-    return await chat(
-      messages: [
-        {'role': 'user', 'content': userPrompt},
-      ],
-      systemPrompt: systemPrompt,
-      temperature: 0.6,
+      temperature:
+          0.3, // Lower temperature for more focused, consistent summaries
     );
   }
 

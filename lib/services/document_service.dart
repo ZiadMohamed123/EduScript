@@ -31,7 +31,6 @@ class DocumentService {
 
     try {
       // Backend automatically filters documents by user_id from JWT token
-      // The endpoint /document/allDocsMetaData uses req.user.user_id to filter
       final response = await HttpClient.get('/document/allDocsMetaData');
 
       if (response.statusCode == 200) {
@@ -41,7 +40,6 @@ class DocumentService {
         // Backend already filters by user, but we validate here as well
         // All documents returned should belong to the current logged-in user
         _cachedDocuments = documentsList.map((doc) {
-          // API returns upload_date from the query, but may also have created_at
           final dateString =
               doc['upload_date'] as String? ?? doc['created_at'] as String?;
           return Document(
@@ -49,7 +47,6 @@ class DocumentService {
             title: doc['name'] as String? ?? 'Untitled Document',
             dateCreated: _parseDate(dateString),
             pageCount: (doc['no_of_pages'] as num?)?.toInt() ?? 1,
-            thumbnailPath: null, // Not provided by API
           );
         }).toList();
 
@@ -95,10 +92,8 @@ class DocumentService {
       return DateTime.now();
     }
     try {
-      // Try parsing ISO 8601 format
       return DateTime.parse(dateString);
     } catch (e) {
-      // Fallback to current date if parsing fails
       return DateTime.now();
     }
   }
@@ -209,7 +204,7 @@ class DocumentService {
     }
   }
 
-  /// Get document summary from the documents list (which includes summary field)
+  /// Get document summary from the documents list
   /// Uses cache if available to avoid unnecessary API calls
   Future<String?> getDocumentSummary(String id) async {
     final data = await getDocumentData(id);
@@ -217,10 +212,8 @@ class DocumentService {
   }
 
   /// Update document summary
-  /// According to API docs: PUT /document/edit/:documentID accepts summary in request body
   Future<void> updateDocumentSummary(String id, String summary) async {
     try {
-      // According to API docs, endpoint is PUT /document/edit/:documentID
       // Body should include summary field
       final response = await HttpClient.put(
         '/document/edit/$id',
@@ -230,9 +223,7 @@ class DocumentService {
       );
 
       if (response.statusCode == 200) {
-        // Update summary in cache immediately
         updateSummaryCache(id, summary);
-        // Clear document cache to force refresh on next fetch
         _cachedDocuments.clear();
         _lastFetchTime = null;
       } else if (response.statusCode == 401) {
@@ -253,16 +244,12 @@ class DocumentService {
   }
 
   /// Delete a document from API
-  /// According to API docs: DELETE /document/delete/:documentID
   /// This deletes the document from the database and the file from storage
   Future<void> deleteDocument(String id) async {
     try {
       if (id.isEmpty) {
         throw Exception('Document ID cannot be empty');
       }
-
-      // Backend route is /document/delete/:documentID
-      // According to API docs, this deletes the document from the database
       debugPrint('Deleting document with ID: $id');
       final response = await HttpClient.delete('/document/delete/$id');
 
@@ -270,13 +257,9 @@ class DocumentService {
       debugPrint('Delete response body: ${response.body}');
 
       if (response.statusCode == 200) {
-        // Document successfully deleted from database
         debugPrint('Document deleted successfully from database');
-        // Clear all caches to ensure fresh data on next fetch
         clearCache();
-        // Also remove from local cache immediately for instant UI update
         _cachedDocuments.removeWhere((doc) => doc.id == id);
-        // Remove from summary and extracted_text caches
         _summaryCache.remove(id);
         _extractedTextCache.remove(id);
       } else if (response.statusCode == 401) {
@@ -290,16 +273,11 @@ class DocumentService {
         final errorMessage = errorData?['message'] as String?;
         debugPrint(
             'Delete failed with status ${response.statusCode}: $errorMessage');
-
-        // Provide more helpful error message for 500 errors
         if (response.statusCode == 500) {
           throw Exception('Server error while deleting document. '
-              'The document file may be missing or there was a database error. '
-              'Please try again or contact support if the issue persists.');
+              'The document file may be missing or there was a database error.');
         }
-
-        throw Exception(errorMessage ??
-            'Failed to delete document: ${response.statusCode}');
+        throw Exception(errorMessage ?? 'Failed to delete document');
       }
     } catch (e) {
       debugPrint('Error deleting document: $e');

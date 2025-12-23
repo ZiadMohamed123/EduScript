@@ -6,7 +6,6 @@ import 'theme_controller.dart';
 
 /// Authentication Controller
 /// Manages authentication state across the app
-/// Similar to ThemeController, uses ValueNotifier for reactive updates
 class AuthController {
   static final AuthController _instance = AuthController._internal();
   factory AuthController() => _instance;

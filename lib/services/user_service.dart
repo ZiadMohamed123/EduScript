@@ -34,7 +34,6 @@ class UserService {
 
   /// Get user profile picture
   /// Requires JWT token (automatically included)
-  /// Returns the image bytes or null if not found
   Future<Uint8List?> getProfilePicture() async {
     try {
       final response = await HttpClient.get('/user/profile-picture');
@@ -87,11 +86,9 @@ class UserService {
         
         // Detect image type from file signature (magic bytes)
         if (fileBytes.length >= 2) {
-          // JPEG: FF D8 FF
           if (fileBytes[0] == 0xFF && fileBytes[1] == 0xD8) {
             contentType = 'image/jpeg';
           }
-          // PNG: 89 50 4E 47
           else if (fileBytes.length >= 4 && 
                    fileBytes[0] == 0x89 && 
                    fileBytes[1] == 0x50 && 
@@ -99,7 +96,6 @@ class UserService {
                    fileBytes[3] == 0x47) {
             contentType = 'image/png';
           }
-          // WebP: Check for "RIFF" and "WEBP"
           else if (fileBytes.length >= 12 &&
                    fileBytes[0] == 0x52 && fileBytes[1] == 0x49 && 
                    fileBytes[2] == 0x46 && fileBytes[3] == 0x46 &&
@@ -107,7 +103,6 @@ class UserService {
                    fileBytes[10] == 0x42 && fileBytes[11] == 0x50) {
             contentType = 'image/webp';
           }
-          // Fallback to provided mimeType or extension
           else {
             if (mimeType != null && mimeType.isNotEmpty) {
               contentType = mimeType;
@@ -115,7 +110,6 @@ class UserService {
                 contentType = 'image/jpeg';
               }
             } else {
-              // Extension-based fallback
               final parts = fileName.split('.');
               final fileExtension = parts.length > 1 ? parts.last.toLowerCase() : '';
               switch (fileExtension) {
