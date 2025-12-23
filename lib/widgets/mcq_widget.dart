@@ -27,6 +27,8 @@ class _McqWidgetState extends State<McqWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    
     return Column(
       children: widget.options.map((opt) {
         return RadioListTile<String>(
@@ -36,7 +38,11 @@ class _McqWidgetState extends State<McqWidget> {
             setState(() => selected = value);
             widget.onAnswerChanged?.call(value ?? '');
           },
-          title: Text(opt),
+          title: Text(
+            opt,
+            style: TextStyle(color: scheme.onSurface),
+          ),
+          activeColor: scheme.primary,
         );
       }).toList(),
     );

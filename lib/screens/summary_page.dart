@@ -320,16 +320,7 @@ class _SummaryPageState extends State<SummaryPage> {
           lowerMessage.contains('what is') ||
           lowerMessage.contains('how does') ||
           lowerMessage.contains('tell me about')) {
-        // Extract concept from message
-        final concept = userMessage
-            .replaceAll(
-              RegExp(
-                r'(explain|what is|how does|tell me about)',
-                caseSensitive: false,
-              ),
-              '',
-            )
-            .trim();
+       
 
         response = await _openRouterService!.tutorChat(
           userMessage: userMessage,
@@ -359,8 +350,7 @@ class _SummaryPageState extends State<SummaryPage> {
       }
     } catch (e, stackTrace) {
       if (mounted) {
-        debugPrint('✗ Error in _generateResponse: $e');
-        debugPrint('Stack trace: $stackTrace');
+       
 
         String errorMessage = 'Sorry, I encountered an error.\n\n';
 

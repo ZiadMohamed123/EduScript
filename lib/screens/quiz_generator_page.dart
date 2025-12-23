@@ -54,7 +54,7 @@ class _QuizGeneratorPageState extends State<QuizGeneratorPage> {
     final textToUse = widget.extractedText ?? widget.initialNotes;
     if (textToUse != null && textToUse.trim().isNotEmpty) {
       _notesController.text = textToUse;
-      
+
       // Auto-generate quiz if requested
       if (widget.autoGenerate) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -107,9 +107,9 @@ class _QuizGeneratorPageState extends State<QuizGeneratorPage> {
   }
 
   Future<void> _submitQuiz() async {
-    final unansweredQuestions = _questions.where((q) => 
-      q.userAnswer == null || q.userAnswer!.isEmpty
-    ).toList();
+    final unansweredQuestions = _questions
+        .where((q) => q.userAnswer == null || q.userAnswer!.isEmpty)
+        .toList();
 
     if (unansweredQuestions.isNotEmpty) {
       if (!mounted) return;
@@ -154,7 +154,8 @@ class _QuizGeneratorPageState extends State<QuizGeneratorPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('No document selected. Open the quiz generator from a document to save it.'),
+          content: Text(
+              'No document selected. Open the quiz generator from a document to save it.'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -237,13 +238,14 @@ class _QuizGeneratorPageState extends State<QuizGeneratorPage> {
   Widget _buildResultsView() {
     if (_quizResults == null) return const SizedBox.shrink();
 
+    final scheme = Theme.of(context).colorScheme;
     final score = _quizResults!['score'] as int;
     final totalQuestions = _quizResults!['totalQuestions'] as int;
     final correctAnswers = _quizResults!['correctAnswers'] as int;
     final feedbackList = _quizResults!['feedback'] as List<dynamic>;
 
     return Card(
-      color: Colors.white,
+      color: scheme.surface,
       elevation: 3,
       margin: const EdgeInsets.all(16),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -253,9 +255,13 @@ class _QuizGeneratorPageState extends State<QuizGeneratorPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
+            Text(
               'Quiz Results',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: scheme.onSurface,
+              ),
             ),
             const SizedBox(height: 16),
             Row(
@@ -268,28 +274,42 @@ class _QuizGeneratorPageState extends State<QuizGeneratorPage> {
                       style: TextStyle(
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
-                        color: score >= 70 ? Colors.green : score >= 50 ? Colors.orange : Colors.red,
+                        color: score >= 70
+                            ? Colors.green
+                            : score >= 50
+                                ? Colors.orange
+                                : Colors.red,
                       ),
                     ),
-                    const Text('Score'),
+                    Text('Score',
+                        style: TextStyle(color: scheme.onSurfaceVariant)),
                   ],
                 ),
                 Column(
                   children: [
                     Text(
                       '$correctAnswers / $totalQuestions',
-                      style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        color: scheme.onSurface,
+                      ),
                     ),
-                    const Text('Correct'),
+                    Text('Correct',
+                        style: TextStyle(color: scheme.onSurfaceVariant)),
                   ],
                 ),
               ],
             ),
             const SizedBox(height: 20),
-            const Divider(),
-            const Text(
+            Divider(color: scheme.outline),
+            Text(
               'Feedback:',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: scheme.onSurface,
+              ),
             ),
             const SizedBox(height: 10),
             ...feedbackList.map((feedback) {
@@ -297,7 +317,7 @@ class _QuizGeneratorPageState extends State<QuizGeneratorPage> {
               final isCorrect = feedback['isCorrect'] as bool;
               final feedbackText = feedback['feedback'] as String;
               final question = _questions.firstWhere((q) => q.id == questionId);
-              
+
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Column(
@@ -314,7 +334,10 @@ class _QuizGeneratorPageState extends State<QuizGeneratorPage> {
                         Expanded(
                           child: Text(
                             'Q$questionId: ${question.text}',
-                            style: const TextStyle(fontWeight: FontWeight.w500),
+                            style: TextStyle(
+                              fontWeight: FontWeight.w500,
+                              color: scheme.onSurface,
+                            ),
                           ),
                         ),
                       ],
@@ -323,7 +346,10 @@ class _QuizGeneratorPageState extends State<QuizGeneratorPage> {
                       padding: const EdgeInsets.only(left: 28, top: 4),
                       child: Text(
                         feedbackText,
-                        style: TextStyle(color: Colors.grey[700], fontSize: 14),
+                        style: TextStyle(
+                          color: scheme.onSurfaceVariant,
+                          fontSize: 14,
+                        ),
                       ),
                     ),
                   ],
@@ -334,10 +360,20 @@ class _QuizGeneratorPageState extends State<QuizGeneratorPage> {
             // Save Quiz to Library Button
             OutlinedButton.icon(
               onPressed: _isSavingQuiz ? null : _saveQuizToDatabase,
+              icon: _isSavingQuiz
+                  ? SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: scheme.primary,
+                      ),
+                    )
+                  : const Icon(Icons.save),
               label: const Text("Save Quiz"),
               style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF0066CC),
-                side: const BorderSide(color: Color(0xFF0066CC)),
+                foregroundColor: scheme.primary,
+                side: BorderSide(color: scheme.primary),
                 minimumSize: const Size(double.infinity, 48),
               ),
             ),
@@ -346,12 +382,15 @@ class _QuizGeneratorPageState extends State<QuizGeneratorPage> {
             ElevatedButton(
               onPressed: _resetQuiz,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0066CC),
+                backgroundColor: scheme.primary,
                 minimumSize: const Size(double.infinity, 48),
               ),
-              child: const Text(
+              child: Text(
                 'Take Another Quiz',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  color: scheme.onPrimary,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ],
@@ -364,30 +403,47 @@ class _QuizGeneratorPageState extends State<QuizGeneratorPage> {
   Widget build(BuildContext context) {
     final hasExternalDocumentId = widget.documentId?.trim().isNotEmpty == true;
     final hasExtractedText = widget.extractedText?.trim().isNotEmpty == true;
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: scheme.surface,
       appBar: AppBar(
         title: Text(
           widget.documentTitle != null
               ? "Quiz – ${widget.documentTitle}"
               : "Quiz Generator",
         ),
-        backgroundColor: const Color(0xFF0066CC),
+        backgroundColor: scheme.primary,
       ),
       body: Column(
         children: [
           const SizedBox(height: 16),
-          
+
           // Only show document ID field if no external document ID is provided
           if (!hasExternalDocumentId)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: TextField(
                 controller: _docIdController,
-                decoration: const InputDecoration(
+                style: TextStyle(color: scheme.onSurface),
+                decoration: InputDecoration(
                   labelText: 'Document ID',
+                  labelStyle: TextStyle(color: scheme.onSurfaceVariant),
                   hintText: 'Enter the document ID to attach this quiz',
+                  hintStyle: TextStyle(
+                      color: scheme.onSurfaceVariant.withOpacity(0.6)),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: scheme.outline),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: scheme.primary, width: 2),
+                  ),
+                  filled: true,
+                  fillColor:
+                      scheme.surfaceVariant.withOpacity(isDark ? 0.3 : 0.7),
                 ),
               ),
             ),
@@ -399,32 +455,49 @@ class _QuizGeneratorPageState extends State<QuizGeneratorPage> {
               child: TextField(
                 controller: _notesController,
                 maxLines: 5,
+                style: TextStyle(color: scheme.onSurface),
                 decoration: InputDecoration(
                   hintText: "Paste your notes here...",
+                  hintStyle: TextStyle(
+                      color: scheme.onSurfaceVariant.withOpacity(0.6)),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFF0066CC), width: 1.5),
+                    borderSide: BorderSide(color: scheme.outline),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Colors.blueAccent, width: 2),
+                    borderSide: BorderSide(color: scheme.primary, width: 2),
                   ),
                   errorBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Colors.red),
+                    borderSide: BorderSide(color: scheme.error),
                   ),
+                  filled: true,
+                  fillColor:
+                      scheme.surfaceVariant.withOpacity(isDark ? 0.3 : 0.7),
                 ),
               ),
             ),
 
             // Generate Button - only show if no extracted text
-            ElevatedButton(
-              onPressed: _isLoading ? null : _generateQuiz,
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0066CC)),
-              child: _isLoading
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text("Generate Quiz",
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: ElevatedButton(
+                onPressed: _isLoading ? null : _generateQuiz,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: scheme.primary,
+                  minimumSize: const Size(double.infinity, 48),
+                ),
+                child: _isLoading
+                    ? CircularProgressIndicator(color: scheme.onPrimary)
+                    : Text(
+                        "Generate Quiz",
+                        style: TextStyle(
+                          color: scheme.onPrimary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+              ),
             ),
 
             const SizedBox(height: 16),
@@ -432,16 +505,19 @@ class _QuizGeneratorPageState extends State<QuizGeneratorPage> {
 
           // Loading indicator when auto-generating
           if (_isLoading && hasExtractedText)
-            const Expanded(
+            Expanded(
               child: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 16),
+                    CircularProgressIndicator(color: scheme.primary),
+                    const SizedBox(height: 16),
                     Text(
                       'Generating quiz from document...',
-                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: scheme.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 ),
@@ -456,36 +532,46 @@ class _QuizGeneratorPageState extends State<QuizGeneratorPage> {
                   : _questions.isEmpty
                       ? Center(
                           child: Text(
-                            hasExtractedText 
+                            hasExtractedText
                                 ? "Generating quiz..."
                                 : "Enter your notes to generate quiz",
+                            style: TextStyle(color: scheme.onSurfaceVariant),
                           ),
                         )
                       : QuestionCard(
                           question: _questions[_currentIndex],
-                          child: _buildQuestionContent(_questions[_currentIndex]),
+                          child:
+                              _buildQuestionContent(_questions[_currentIndex]),
                         ),
             ),
 
           // Navigation, Submit, and Save Buttons
           if (_questions.isNotEmpty && _quizResults == null) ...[
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                TextButton(
-                  onPressed: _currentIndex > 0
-                      ? () => setState(() => _currentIndex--)
-                      : null,
-                  child: const Text("Previous"),
-                ),
-                Text("${_currentIndex + 1} / ${_questions.length}"),
-                TextButton(
-                  onPressed: _currentIndex < _questions.length - 1
-                      ? () => setState(() => _currentIndex++)
-                      : null,
-                  child: const Text("Next"),
-                ),
-              ],
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  TextButton(
+                    onPressed: _currentIndex > 0
+                        ? () => setState(() => _currentIndex--)
+                        : null,
+                    child: Text("Previous",
+                        style: TextStyle(color: scheme.primary)),
+                  ),
+                  Text(
+                    "${_currentIndex + 1} / ${_questions.length}",
+                    style: TextStyle(color: scheme.onSurface),
+                  ),
+                  TextButton(
+                    onPressed: _currentIndex < _questions.length - 1
+                        ? () => setState(() => _currentIndex++)
+                        : null,
+                    child:
+                        Text("Next", style: TextStyle(color: scheme.primary)),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 8),
             Padding(
@@ -493,14 +579,17 @@ class _QuizGeneratorPageState extends State<QuizGeneratorPage> {
               child: ElevatedButton(
                 onPressed: _isSubmitting ? null : _submitQuiz,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0066CC),
+                  backgroundColor: scheme.primary,
                   minimumSize: const Size(double.infinity, 48),
                 ),
                 child: _isSubmitting
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text(
+                    ? CircularProgressIndicator(color: scheme.onPrimary)
+                    : Text(
                         "Submit Quiz",
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          color: scheme.onPrimary,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
               ),
             ),

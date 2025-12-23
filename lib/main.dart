@@ -17,7 +17,6 @@ import 'utils/theme_controller.dart';
 
 import 'screens/auth/login_page.dart';
 import 'screens/auth/signup_page.dart';
-import 'screens/extraction_result_page.dart';
 
 import 'providers/document_provider.dart';
 
@@ -27,7 +26,7 @@ import 'utils/auth_guard.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
-    await dotenv.load(fileName: ".env");
+    await dotenv.load(fileName: "assets/.env");
     // Verify API key was loaded
     final apiKey = dotenv.env['GEMINI_API_KEY'];
     if (apiKey == null || apiKey.isEmpty) {

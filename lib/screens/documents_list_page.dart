@@ -79,7 +79,6 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
     }
   }
 
-  
   @override
   Widget build(BuildContext context) {
     final filteredDocuments = _documents.where((doc) {
@@ -194,23 +193,30 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
                     ? _buildEmptyState()
                     : LayoutBuilder(
                         builder: (context, constraints) {
-                          final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
-                          final crossAxisCount = isLandscape 
+                          final isLandscape =
+                              MediaQuery.of(context).orientation ==
+                                  Orientation.landscape;
+                          final crossAxisCount = isLandscape
                               ? (constraints.maxWidth / 300).floor().clamp(2, 4)
                               : 1;
-                          
+
                           if (isLandscape && crossAxisCount > 1) {
                             // Grid layout for landscape - improved spacing
                             return GridView.builder(
                               padding: EdgeInsets.symmetric(
-                                horizontal: constraints.maxWidth > 800 ? 32 : 16,
+                                horizontal:
+                                    constraints.maxWidth > 800 ? 32 : 16,
                                 vertical: 16,
                               ),
-                              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                              gridDelegate:
+                                  SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: crossAxisCount,
-                                crossAxisSpacing: constraints.maxWidth > 800 ? 24 : 16,
-                                mainAxisSpacing: constraints.maxWidth > 800 ? 24 : 16,
-                                childAspectRatio: constraints.maxWidth > 800 ? 1.3 : 1.2,
+                                crossAxisSpacing:
+                                    constraints.maxWidth > 800 ? 24 : 16,
+                                mainAxisSpacing:
+                                    constraints.maxWidth > 800 ? 24 : 16,
+                                childAspectRatio:
+                                    constraints.maxWidth > 800 ? 1.3 : 1.2,
                               ),
                               itemCount: filteredDocuments.length,
                               itemBuilder: (context, index) {
@@ -229,7 +235,8 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
                           } else {
                             // List layout for portrait
                             return ListView.builder(
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 16),
                               itemCount: filteredDocuments.length,
                               itemBuilder: (context, index) {
                                 return _DocumentCard(
@@ -265,9 +272,7 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
           ),
           const SizedBox(height: 16),
           Text(
-            _searchQuery.isNotEmpty
-                ? 'No documents found'
-                : 'No documents yet',
+            _searchQuery.isNotEmpty ? 'No documents found' : 'No documents yet',
             style: TextStyle(
               fontSize: 18,
               color: Colors.grey.shade600,
@@ -289,12 +294,16 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
   }
 
   void _showDocumentOptions(BuildContext context, Document document) {
+    // Capture parent context and ScaffoldMessenger before showing modal
+    final parentContext = context;
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => Column(
+      builder: (modalContext) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           const SizedBox(height: 12),
@@ -308,24 +317,12 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
           ),
           const SizedBox(height: 20),
           ListTile(
-            leading: const Icon(Icons.visibility),
-            title: const Text('View Document'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.pushNamed(
-                context,
-                '/document-viewer',
-                arguments: document,
-              );
-            },
-          ),
-          ListTile(
             leading: const Icon(Icons.summarize),
             title: const Text('View Summary'),
             onTap: () {
-              Navigator.pop(context);
+              Navigator.pop(modalContext);
               Navigator.pushNamed(
-                context,
+                parentContext,
                 '/document-summary',
                 arguments: document,
               );
@@ -333,45 +330,21 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
           ),
           ListTile(
             leading: const Icon(Icons.quiz),
-            title: const Text('Generate MCQ'),
+            title: const Text('Generate QUIZ'),
             onTap: () async {
-              Navigator.pop(context);
-              
-              // Show loading dialog
-              showDialog(
-                context: context,
-                barrierDismissible: false,
-                builder: (context) => const Center(
-                  child: Card(
-                    child: Padding(
-                      padding: EdgeInsets.all(20.0),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          CircularProgressIndicator(),
-                          SizedBox(height: 16),
-                          Text('Loading document text...'),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              );
+              Navigator.pop(modalContext);
 
               try {
                 // Fetch the extracted text from the document
-                final extractedText = await _documentService.getExtractedText(document.id);
-                
-                // Close loading dialog
-                if (mounted) {
-                  Navigator.pop(context);
-                }
+                final extractedText =
+                    await _documentService.getExtractedText(document.id);
 
                 if (extractedText == null || extractedText.isEmpty) {
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    scaffoldMessenger.showSnackBar(
                       const SnackBar(
-                        content: Text('No text found in document. Please make sure the document has been processed.'),
+                        content: Text(
+                            'No text found in document. Please make sure the document has been processed.'),
                         backgroundColor: Colors.orange,
                       ),
                     );
@@ -382,7 +355,7 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
                 // Navigate to quiz generator with the extracted text
                 if (mounted) {
                   Navigator.push(
-                    context,
+                    parentContext,
                     MaterialPageRoute(
                       builder: (_) => QuizGeneratorPage(
                         documentId: document.id,
@@ -394,13 +367,11 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
                   );
                 }
               } catch (e) {
-                // Close loading dialog if still open
                 if (mounted) {
-                  Navigator.pop(context);
-                  
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  scaffoldMessenger.showSnackBar(
                     SnackBar(
-                      content: Text('Failed to load document text: ${e.toString()}'),
+                      content:
+                          Text('Failed to load document text: ${e.toString()}'),
                       backgroundColor: Colors.red,
                     ),
                   );
@@ -412,15 +383,15 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
             leading: const Icon(Icons.library_books),
             title: const Text('View Quizzes'),
             onTap: () {
-              Navigator.pop(context);
-              Navigator.pushNamed(context, '/saved-quizzes');
+              Navigator.pop(modalContext);
+              Navigator.pushNamed(parentContext, '/saved-quizzes');
             },
           ),
           ListTile(
             leading: const Icon(Icons.delete, color: Colors.red),
             title: const Text('Delete', style: TextStyle(color: Colors.red)),
             onTap: () {
-              Navigator.pop(context);
+              Navigator.pop(modalContext);
               _deleteDocument(document);
             },
           ),

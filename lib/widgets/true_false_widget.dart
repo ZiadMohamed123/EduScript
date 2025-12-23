@@ -25,6 +25,8 @@ class _TrueFalseWidgetState extends State<TrueFalseWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Column(
       children: [
         RadioListTile(
@@ -34,7 +36,11 @@ class _TrueFalseWidgetState extends State<TrueFalseWidget> {
             setState(() => answer = v);
             widget.onAnswerChanged?.call(v ?? '');
           },
-          title: const Text("True"),
+          title: Text(
+            "True",
+            style: TextStyle(color: scheme.onSurface),
+          ),
+          activeColor: scheme.primary,
         ),
         RadioListTile(
           value: "False",
@@ -43,7 +49,11 @@ class _TrueFalseWidgetState extends State<TrueFalseWidget> {
             setState(() => answer = v);
             widget.onAnswerChanged?.call(v ?? '');
           },
-          title: const Text("False"),
+          title: Text(
+            "False",
+            style: TextStyle(color: scheme.onSurface),
+          ),
+          activeColor: scheme.primary,
         ),
       ],
     );
