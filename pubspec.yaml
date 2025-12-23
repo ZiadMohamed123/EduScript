@@ -44,5 +44,4 @@ flutter:
 
   # Assets
   assets:
-    - assets/
-    - android/app/src/main/assets/tessdata/
+    - .env

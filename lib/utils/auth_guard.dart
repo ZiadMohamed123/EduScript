@@ -30,7 +30,7 @@ class _AuthGuardState extends State<AuthGuard> {
     // Check authentication status from the service
     final authService = AuthService();
     final isLoggedIn = await authService.isLoggedIn();
-    
+
     if (mounted) {
       setState(() {
         _isAuthenticated = isLoggedIn;
@@ -97,4 +97,3 @@ class _AuthGuardState extends State<AuthGuard> {
     );
   }
 }
-

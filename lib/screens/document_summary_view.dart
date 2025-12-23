@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'documents_list_page.dart';
+import '../services/document_service.dart';
 import '../services/openrouter_service.dart';
 import '../config/api_config.dart';
 
@@ -18,8 +19,10 @@ class DocumentSummaryView extends StatefulWidget {
 }
 
 class _DocumentSummaryViewState extends State<DocumentSummaryView> {
+  final DocumentService _documentService = DocumentService();
   OpenRouterService? _openRouterService;
   String? _generatedSummary;
+  bool _isLoading = true;
   bool _isGeneratingSummary = false;
   String? _errorMessage;
 
@@ -28,7 +31,7 @@ class _DocumentSummaryViewState extends State<DocumentSummaryView> {
     super.initState();
     _initializeService();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _generateSummary();
+      _loadOrGenerateSummary();
     });
   }
 
@@ -40,11 +43,89 @@ class _DocumentSummaryViewState extends State<DocumentSummaryView> {
     } catch (e) {
       setState(() {
         _errorMessage = 'Failed to initialize AI service: $e';
+        _isLoading = false;
       });
     }
   }
 
-  Future<void> _generateSummary() async {
+  Future<void> _loadOrGenerateSummary() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      // According to API docs: GET /document/allDocsMetaData returns summary and extracted_text
+      final documentData = await _documentService.getDocumentData(widget.document.id);
+      final existingSummary = documentData['summary'];
+      final extractedText = documentData['extracted_text'];
+
+      if (existingSummary != null && existingSummary.trim().isNotEmpty) {
+        // Summary exists in database, use it immediately
+        if (mounted) {
+          setState(() {
+            _generatedSummary = existingSummary;
+            _isLoading = false;
+            _isGeneratingSummary = false;
+          });
+        }
+        return;
+      }
+
+      // No summary exists - generate one using extracted_text
+      if (extractedText == null || extractedText.trim().isEmpty) {
+        if (mounted) {
+          setState(() {
+            _errorMessage = 'No summary found and extracted text is not available. Cannot generate summary.';
+            _isLoading = false;
+            _isGeneratingSummary = false;
+          });
+        }
+        return;
+      }
+
+      // Generate summary using extracted text
+      if (_openRouterService == null) {
+        setState(() {
+          _errorMessage = 'AI service not available. Please check your API key.';
+          _isLoading = false;
+          _isGeneratingSummary = false;
+        });
+        return;
+      }
+
+      setState(() {
+        _isGeneratingSummary = true;
+        _isLoading = false;
+      });
+
+      // Generate summary with extracted text using improved prompt
+      final summary = await _openRouterService!.generateSummary(
+        documentTitle: widget.document.title,
+        documentContent: extractedText,
+      );
+
+      // Save summary to database according to API docs: PUT /document/edit/:documentID
+      await _documentService.updateDocumentSummary(widget.document.id, summary);
+
+      if (mounted) {
+        setState(() {
+          _generatedSummary = summary;
+          _isGeneratingSummary = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isGeneratingSummary = false;
+          _isLoading = false;
+          _errorMessage = 'Failed to load or generate summary: $e';
+        });
+      }
+    }
+  }
+
+  Future<void> _regenerateSummary() async {
     if (_openRouterService == null) {
       setState(() {
         _errorMessage = 'AI service not available. Please check your API key.';
@@ -58,9 +139,28 @@ class _DocumentSummaryViewState extends State<DocumentSummaryView> {
     });
 
     try {
+      // Get extracted text from database
+      final documentData = await _documentService.getDocumentData(widget.document.id);
+      final extractedText = documentData['extracted_text'];
+
+      if (extractedText == null || extractedText.trim().isEmpty) {
+        if (mounted) {
+          setState(() {
+            _errorMessage = 'No extracted text available for this document. Cannot generate summary.';
+            _isGeneratingSummary = false;
+          });
+        }
+        return;
+      }
+
+      // Generate new summary
       final summary = await _openRouterService!.generateSummary(
         documentTitle: widget.document.title,
+        documentContent: extractedText,
       );
+
+      // Save new summary to database
+      await _documentService.updateDocumentSummary(widget.document.id, summary);
 
       if (mounted) {
         setState(() {
@@ -72,11 +172,12 @@ class _DocumentSummaryViewState extends State<DocumentSummaryView> {
       if (mounted) {
         setState(() {
           _isGeneratingSummary = false;
-          _errorMessage = 'Failed to generate summary: $e';
+          _errorMessage = 'Failed to regenerate summary: $e';
         });
       }
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -99,11 +200,11 @@ class _DocumentSummaryViewState extends State<DocumentSummaryView> {
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Regenerate Summary',
-            onPressed: _isGeneratingSummary ? null : _generateSummary,
+            onPressed: (_isLoading || _isGeneratingSummary) ? null : _regenerateSummary,
           ),
         ],
       ),
-      body: _isGeneratingSummary
+      body: (_isLoading || _isGeneratingSummary)
           ? _buildLoadingView()
           : _errorMessage != null
               ? _buildErrorView()
@@ -122,7 +223,7 @@ class _DocumentSummaryViewState extends State<DocumentSummaryView> {
           const CircularProgressIndicator(),
           const SizedBox(height: 24),
           Text(
-            'Generating summary...',
+            _isGeneratingSummary ? 'Generating summary...' : 'Loading summary...',
             style: TextStyle(
               fontSize: 16,
               color: scheme.onSurfaceVariant,
@@ -130,7 +231,9 @@ class _DocumentSummaryViewState extends State<DocumentSummaryView> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Please wait while AI analyzes your document',
+            _isGeneratingSummary 
+                ? 'Please wait while AI analyzes your document'
+                : 'Checking for existing summary...',
             style: TextStyle(
               fontSize: 14,
               color: scheme.onSurfaceVariant.withOpacity(0.7),
@@ -174,7 +277,7 @@ class _DocumentSummaryViewState extends State<DocumentSummaryView> {
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
-              onPressed: _generateSummary,
+              onPressed: _loadOrGenerateSummary,
               icon: const Icon(Icons.refresh),
               label: const Text('Try Again'),
             ),
@@ -327,8 +430,3 @@ class _DocumentSummaryViewState extends State<DocumentSummaryView> {
     );
   }
 }
-
-
-
-
-

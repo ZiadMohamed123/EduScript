@@ -31,12 +31,40 @@ class HttpClient {
     Map<String, String>? headers,
     bool includeAuth = true,
   }) async {
-    final uri = Uri.parse('${ApiConfig.backendBaseUrl}$endpoint');
-    final requestHeaders = await getHeaders(
-      additionalHeaders: headers,
-      includeAuth: includeAuth,
-    );
-    return await http.get(uri, headers: requestHeaders);
+    try {
+      final uri = Uri.parse('${ApiConfig.backendBaseUrl}$endpoint');
+      final requestHeaders = await getHeaders(
+        additionalHeaders: headers,
+        includeAuth: includeAuth,
+      );
+      return await http.get(uri, headers: requestHeaders).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw Exception(
+            'Connection timeout. Could not connect to server at ${ApiConfig.backendBaseUrl}\n\n'
+            'Please check:\n'
+            '1. Is your backend server running? (cd backend && npm start)\n'
+            '2. Is the server running on port 5000?\n'
+            '3. Check your BACKEND_URL in .env file\n'
+            '4. For Android emulator, use: http://10.0.2.2:5000\n'
+            '5. For physical device, use your computer\'s IP address'
+          );
+        },
+      );
+    } catch (e) {
+      if (e.toString().contains('timeout') || e.toString().contains('Connection')) {
+        rethrow;
+      }
+      throw Exception(
+        'Could not connect to server at ${ApiConfig.backendBaseUrl}\n\n'
+        'Error: ${e.toString()}\n\n'
+        'Please check:\n'
+        '1. Is your backend server running? (cd backend && npm start)\n'
+        '2. Check your BACKEND_URL in .env file\n'
+        '3. For Android emulator, use: http://10.0.2.2:5000\n'
+        '4. For physical device, use your computer\'s IP address'
+      );
+    }
   }
 
   /// POST request with automatic JWT token
@@ -46,16 +74,44 @@ class HttpClient {
     Map<String, String>? headers,
     bool includeAuth = true,
   }) async {
-    final uri = Uri.parse('${ApiConfig.backendBaseUrl}$endpoint');
-    final requestHeaders = await getHeaders(
-      additionalHeaders: headers,
-      includeAuth: includeAuth,
-    );
-    return await http.post(
-      uri,
-      headers: requestHeaders,
-      body: body != null ? jsonEncode(body) : null,
-    );
+    try {
+      final uri = Uri.parse('${ApiConfig.backendBaseUrl}$endpoint');
+      final requestHeaders = await getHeaders(
+        additionalHeaders: headers,
+        includeAuth: includeAuth,
+      );
+      return await http.post(
+        uri,
+        headers: requestHeaders,
+        body: body != null ? jsonEncode(body) : null,
+      ).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw Exception(
+            'Connection timeout. Could not connect to server at ${ApiConfig.backendBaseUrl}\n\n'
+            'Please check:\n'
+            '1. Is your backend server running? (cd backend && npm start)\n'
+            '2. Is the server running on port 5000?\n'
+            '3. Check your BACKEND_URL in .env file\n'
+            '4. For Android emulator, use: http://10.0.2.2:5000\n'
+            '5. For physical device, use your computer\'s IP address'
+          );
+        },
+      );
+    } catch (e) {
+      if (e.toString().contains('timeout') || e.toString().contains('Connection')) {
+        rethrow;
+      }
+      throw Exception(
+        'Could not connect to server at ${ApiConfig.backendBaseUrl}\n\n'
+        'Error: ${e.toString()}\n\n'
+        'Please check:\n'
+        '1. Is your backend server running? (cd backend && npm start)\n'
+        '2. Check your BACKEND_URL in .env file\n'
+        '3. For Android emulator, use: http://10.0.2.2:5000\n'
+        '4. For physical device, use your computer\'s IP address'
+      );
+    }
   }
 
   /// PUT request with automatic JWT token
@@ -65,16 +121,44 @@ class HttpClient {
     Map<String, String>? headers,
     bool includeAuth = true,
   }) async {
-    final uri = Uri.parse('${ApiConfig.backendBaseUrl}$endpoint');
-    final requestHeaders = await getHeaders(
-      additionalHeaders: headers,
-      includeAuth: includeAuth,
-    );
-    return await http.put(
-      uri,
-      headers: requestHeaders,
-      body: body != null ? jsonEncode(body) : null,
-    );
+    try {
+      final uri = Uri.parse('${ApiConfig.backendBaseUrl}$endpoint');
+      final requestHeaders = await getHeaders(
+        additionalHeaders: headers,
+        includeAuth: includeAuth,
+      );
+      return await http.put(
+        uri,
+        headers: requestHeaders,
+        body: body != null ? jsonEncode(body) : null,
+      ).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw Exception(
+            'Connection timeout. Could not connect to server at ${ApiConfig.backendBaseUrl}\n\n'
+            'Please check:\n'
+            '1. Is your backend server running? (cd backend && npm start)\n'
+            '2. Is the server running on port 5000?\n'
+            '3. Check your BACKEND_URL in .env file\n'
+            '4. For Android emulator, use: http://10.0.2.2:5000\n'
+            '5. For physical device, use your computer\'s IP address'
+          );
+        },
+      );
+    } catch (e) {
+      if (e.toString().contains('timeout') || e.toString().contains('Connection')) {
+        rethrow;
+      }
+      throw Exception(
+        'Could not connect to server at ${ApiConfig.backendBaseUrl}\n\n'
+        'Error: ${e.toString()}\n\n'
+        'Please check:\n'
+        '1. Is your backend server running? (cd backend && npm start)\n'
+        '2. Check your BACKEND_URL in .env file\n'
+        '3. For Android emulator, use: http://10.0.2.2:5000\n'
+        '4. For physical device, use your computer\'s IP address'
+      );
+    }
   }
 
   /// DELETE request with automatic JWT token
@@ -83,12 +167,40 @@ class HttpClient {
     Map<String, String>? headers,
     bool includeAuth = true,
   }) async {
-    final uri = Uri.parse('${ApiConfig.backendBaseUrl}$endpoint');
-    final requestHeaders = await getHeaders(
-      additionalHeaders: headers,
-      includeAuth: includeAuth,
-    );
-    return await http.delete(uri, headers: requestHeaders);
+    try {
+      final uri = Uri.parse('${ApiConfig.backendBaseUrl}$endpoint');
+      final requestHeaders = await getHeaders(
+        additionalHeaders: headers,
+        includeAuth: includeAuth,
+      );
+      return await http.delete(uri, headers: requestHeaders).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw Exception(
+            'Connection timeout. Could not connect to server at ${ApiConfig.backendBaseUrl}\n\n'
+            'Please check:\n'
+            '1. Is your backend server running? (cd backend && npm start)\n'
+            '2. Is the server running on port 5000?\n'
+            '3. Check your BACKEND_URL in .env file\n'
+            '4. For Android emulator, use: http://10.0.2.2:5000\n'
+            '5. For physical device, use your computer\'s IP address'
+          );
+        },
+      );
+    } catch (e) {
+      if (e.toString().contains('timeout') || e.toString().contains('Connection')) {
+        rethrow;
+      }
+      throw Exception(
+        'Could not connect to server at ${ApiConfig.backendBaseUrl}\n\n'
+        'Error: ${e.toString()}\n\n'
+        'Please check:\n'
+        '1. Is your backend server running? (cd backend && npm start)\n'
+        '2. Check your BACKEND_URL in .env file\n'
+        '3. For Android emulator, use: http://10.0.2.2:5000\n'
+        '4. For physical device, use your computer\'s IP address'
+      );
+    }
   }
 
   /// POST request with multipart/form-data (for file uploads)
@@ -154,8 +266,3 @@ class HttpClient {
     return await http.Response.fromStream(streamedResponse);
   }
 }
-
-
-
-
-
