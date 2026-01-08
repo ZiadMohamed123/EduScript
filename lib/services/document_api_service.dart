@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 
 class DocumentApiService {
-  static const String baseUrl = 'http://192.168.1.4:5000';
+  static const String baseUrl = 'http://192.168.1.11:5000';
 
   static Future<http.Response> createDocument({
     required File imageFile,

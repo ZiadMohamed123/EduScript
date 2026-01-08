@@ -5,6 +5,7 @@ import '../services/docScanner_service.dart';
 import '../services/docCreate_service.dart';
 import '../providers/document_provider.dart';
 import 'package:provider/provider.dart';
+import '../widgets/status_widget.dart';
 
 class ScannerPage extends StatefulWidget {
   const ScannerPage({super.key});
@@ -18,67 +19,110 @@ class _ScannerPageState extends State<ScannerPage> {
   String _status = 'ready to scan';
   String _resultText = 'Press the button to launch the document scanner.';
   bool _isScanning = false;
+  final List<String> _scannedImages = [];
 
   Future<void> _startScan() async {
     if (_isScanning) return;
 
     setState(() {
       _isScanning = true;
-      _status = 'launching scanner...';
-      _resultText = '.....';
+      _status = 'Scanning page ${_scannedImages.length + 1}...';
     });
 
     try {
-      final String? imagePath = await _scannerService.scanPaper();
+      final List<String>? images = await _scannerService.scanPaper();
 
-      if (imagePath != null) {
-        await _processScannedImage(imagePath);
+      if (images != null && images.isNotEmpty) {
+        setState(() {
+          _scannedImages.addAll(images);
+          _status = 'Pages scanned: ${_scannedImages.length}';
+          _isScanning = false;
+        });
       } else {
         setState(() {
-          _status = 'canceled';
-          _resultText = 'User canceled';
+          _status = 'Canceled';
           _isScanning = false;
         });
       }
     } catch (e) {
       setState(() {
-        _status = 'failed';
-        _resultText = 'Error: scan failed';
+        _status = 'Scan failed';
         _isScanning = false;
       });
     }
   }
 
- Future<void> _processScannedImage(String imagePath) async {
-  setState(() {
-    _status = 'creating PDF...';
-  });
+  Future<void> _finishScan() async {
+    if (_scannedImages.isEmpty) return;
 
-  try {
-    // 1️⃣ Create PDF from scanned image
-    final String pdfPath = await _fileService.CreatePdfFromImages([imagePath]);
+    final defaultName ='Scanned_Document_${_scannedImages.length}_pages_at((${DateTime.now()}))';
 
-    // 2️⃣ Update provider's documentFile so extractStructured can run
-    final provider = Provider.of<DocumentProvider>(context, listen: false);
-    provider.documentFile = File(pdfPath);
+    final pdfName = await _askForPdfName(context, defaultName);
 
-    // 3️⃣ Extract text / structured data from scanned image
-    await provider.extractStructured(File(imagePath));
+    if (pdfName == null || pdfName.isEmpty) return;
 
-    // 4️⃣ Update UI
     setState(() {
-      _status = 'Scan and extraction completed';
-      _resultText = 'PDF saved at:\n$pdfPath';
-      _isScanning = false;
+      _status = 'Creating PDF...';
     });
-  } catch (e) {
-    setState(() {
-      _status = 'Error';
-      _resultText = 'Scan or extraction failed: $e';
-      _isScanning = false;
-    });
+
+    try {
+      final pdfPath = await _fileService.createPdfFromImages(
+        _scannedImages,
+        fileName: pdfName,
+      );
+
+      final provider = Provider.of<DocumentProvider>(context, listen: false);
+      provider.documentFile = File(pdfPath);
+
+      await provider.extractStructuredFromPdf();
+
+      setState(() {
+        _status = 'Done';
+        _resultText = 'Saved as:\n$pdfName.pdf';
+        _scannedImages.clear();
+      });
+    } catch (e) {
+      setState(() {
+        _status = 'Failed';
+        _resultText = '$e';
+      });
+    }
   }
-}
+
+  Future<String?> _askForPdfName(
+      BuildContext context, String defaultName) async {
+    final controller = TextEditingController(text: defaultName);
+
+    return showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Document name'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            decoration: const InputDecoration(
+              hintText: 'Enter PDF name',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, null),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context, controller.text.trim());
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -93,11 +137,7 @@ class _ScannerPageState extends State<ScannerPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
-              Text(
-                'Status: $_status',
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center,
-              ),
+              statusWidget(_status),
               const SizedBox(height: 20),
               Container(
                 padding: const EdgeInsets.all(16),
@@ -115,21 +155,22 @@ class _ScannerPageState extends State<ScannerPage> {
                 ),
               ),
               const SizedBox(height: 40),
+              Text(
+                'Pages: ${_scannedImages.length}',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
               ElevatedButton.icon(
                 onPressed: _isScanning ? null : _startScan,
-                icon: _isScanning
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.document_scanner),
-                label: Text(_isScanning ? 'Scanning...' : 'Start Document Scan'),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 15),
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                ),
+                icon: const Icon(Icons.document_scanner),
+                label: const Text('Scan Page'),
+              ),
+              const SizedBox(height: 10),
+              ElevatedButton.icon(
+                onPressed: _scannedImages.isEmpty ? null : _finishScan,
+                icon: const Icon(Icons.check),
+                label: const Text('Finish Document'),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
               ),
             ],
           ),

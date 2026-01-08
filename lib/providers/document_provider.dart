@@ -19,7 +19,6 @@ class DocumentProvider with ChangeNotifier {
   int currentPage = 0;
   int totalPages = 0;
 
-
   /// Convert PDF → images using pdfx (stable and maintained)
   Future<List<File>> _renderPdfToImages(File pdfFile) async {
     try {
@@ -32,7 +31,7 @@ class DocumentProvider with ChangeNotifier {
 
       for (int i = 1; i <= pageCount; i++) {
         currentPage = i;
-        notifyListeners(); 
+        notifyListeners();
 
         try {
           final page = await document.getPage(i);
@@ -135,15 +134,14 @@ class DocumentProvider with ChangeNotifier {
     }
   }
 
-  /// Structured OCR (all pages at once - faster)
-  Future<void> extractStructured(File image) async {
+  Future<void> extractStructuredFromPdf() async {
     if (documentFile == null) {
       errorMessage = 'No PDF loaded';
       notifyListeners();
       return;
     }
 
-    final cacheKey = '${documentFile!.path}_structured';
+    final cacheKey = '${documentFile!.path}_structured_pdf';
     if (_cache.containsKey(cacheKey)) {
       document = _cache[cacheKey];
       extractedRawText = document?.rawText ?? '';
@@ -153,32 +151,55 @@ class DocumentProvider with ChangeNotifier {
 
     isLoading = true;
     errorMessage = null;
+    currentPage = 0;
+    totalPages = 0;
     notifyListeners();
 
     try {
-      final structured =
-          await OpenRouterOcrService.extractStructuredData(image);
+      final images = await _renderPdfToImages(documentFile!);
 
-      extractedRawText = structured['rawText'] ?? '';
+      StringBuffer fullText = StringBuffer();
 
-      document = ExtractedDocument(
-        title: structured['title'],
-        date: structured['date'],
-        studentName: structured['studentName'],
-        questions: List<String>.from(structured['questions'] ?? []),
-        rawText: extractedRawText,
-      );
+      for (int i = 0; i < images.length; i++) {
+        currentPage = i + 1;
+        notifyListeners();
 
+        try {
+          final structured =
+              await OpenRouterOcrService.extractStructuredData(images[i]);
+
+          final pageText = structured['rawText'] ?? '';
+
+          if (pageText.isNotEmpty) {
+            fullText.writeln('--- Page ${i + 1} ---');
+            fullText.writeln(pageText);
+            fullText.writeln();
+          }
+        } catch (_) {
+          fullText.writeln('--- Page ${i + 1} (failed) ---');
+          fullText.writeln();
+        }
+      }
+
+      extractedRawText = fullText.toString().trim();
+
+      document = ExtractedDocument.fromRawText(extractedRawText);
       _cache[cacheKey] = document!;
 
       await _uploadToBackend();
-    } catch (e, st) {
-      errorMessage = 'Structured extraction failed: $e';
+    } catch (e) {
+      errorMessage = 'Structured PDF extraction failed: $e';
       document = null;
     } finally {
       isLoading = false;
+      currentPage = 0;
       notifyListeners();
     }
+  }
+
+  String _titleFromPdfPath(File pdfFile) {
+    final name = pdfFile.path.split('/').last.replaceAll('.pdf', '');
+    return name.replaceAll('_', ' ');
   }
 
   /// Upload to backend
@@ -191,7 +212,7 @@ class DocumentProvider with ChangeNotifier {
       final response = await DocumentApiService.createDocument(
         imageFile: documentFile!,
         extractedText: extractedRawText,
-        name: document?.title ?? 'Scanned Document',
+        name: _titleFromPdfPath(documentFile!),
         noOfPages: totalPages > 0 ? totalPages : null,
         token: token ?? '',
       );
