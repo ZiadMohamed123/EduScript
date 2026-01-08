@@ -44,8 +44,8 @@ class _ChatWidgetState extends State<ChatWidget> {
       _messages.add(
         ChatMessage(
           text: _selectedDocument != null
-              ? 'Hi! I can help you with "${_selectedDocument!.title}". Ask me to summarize, generate MCQ questions, or explain concepts!'
-              : 'Hi! I\'m your AI assistant. I can help you summarize documents, generate MCQ questions, and answer questions about your scanned notes.',
+              ? 'Hi! I can help you with "${_selectedDocument!.title}". Ask me to summarize, generate quiz questions, or explain concepts!'
+              : 'Hi! I\'m your AI assistant. I can help you summarize documents, generate quiz questions, and answer questions about your scanned notes.',
           isUser: false,
           timestamp: DateTime.now(),
         ),
@@ -107,7 +107,7 @@ class _ChatWidgetState extends State<ChatWidget> {
             '**Summary:**\n'
             'This document covers essential topics that build upon fundamental principles. '
             'The content is structured to provide both theoretical understanding and practical applications.\n\n'
-            'Would you like me to generate MCQ questions based on this summary?';
+            'Would you like me to generate quiz questions based on this summary?';
       } else {
         response =
             'I\'d be happy to generate a summary! Please select a document first, or tell me which document you\'d like me to summarize.';
@@ -117,7 +117,7 @@ class _ChatWidgetState extends State<ChatWidget> {
         lowerMessage.contains('quiz')) {
       if (_selectedDocument != null) {
         response =
-            'Here are some MCQ questions based on "${_selectedDocument!.title}":\n\n'
+            'Here are some quiz questions based on "${_selectedDocument!.title}":\n\n'
             '**Question 1:**\n'
             'What is the main topic discussed in this document?\n'
             'A) Option A\n'
@@ -133,7 +133,7 @@ class _ChatWidgetState extends State<ChatWidget> {
             'Would you like more questions or explanations for these answers?';
       } else {
         response =
-            'I can generate MCQ questions for you! Please select a document first, or tell me which document you\'d like me to create questions from.';
+            'I can generate quiz questions for you! Please select a document first, or tell me which document you\'d like me to create questions from.';
       }
     } else if (lowerMessage.contains('explain') ||
         lowerMessage.contains('what is') ||
@@ -152,7 +152,7 @@ class _ChatWidgetState extends State<ChatWidget> {
           '${_selectedDocument != null ? "Based on \"${_selectedDocument!.title}\", " : ""}'
           'I can help you with:\n\n'
           '• **Summaries** - Get concise overviews\n'
-          '• **MCQ Questions** - Generate practice questions\n'
+          '• **Quiz Questions** - Generate practice questions\n'
           '• **Explanations** - Understand concepts better\n'
           '• **Q&A** - Ask specific questions\n\n'
           'What would you like to do?';
@@ -261,8 +261,8 @@ class _ChatWidgetState extends State<ChatWidget> {
                       const SizedBox(width: 8),
                       _QuickActionChip(
                         icon: Icons.quiz,
-                        label: 'MCQ',
-                        onTap: () => _sendMessage('Generate MCQ questions'),
+                        label: 'Quiz',
+                        onTap: () => _sendMessage('Generate quiz questions'),
                       ),
                       const SizedBox(width: 8),
                       _QuickActionChip(
@@ -328,9 +328,13 @@ class _ChatWidgetState extends State<ChatWidget> {
                         ),
                         isDense: true,
                       ),
-                      maxLines: null,
+                      maxLines: 1,
                       textInputAction: TextInputAction.send,
-                      onSubmitted: _sendMessage,
+                      onSubmitted: (value) {
+                        if (value.trim().isNotEmpty) {
+                          _sendMessage(value);
+                        }
+                      },
                     ),
                   ),
                   const SizedBox(width: 8),

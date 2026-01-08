@@ -29,7 +29,7 @@ export class Document {
   static async findByUserId(user_id) {
     const { data, error } = await supabase
       .from("Document")
-      .select("document_id, name, no_of_pages, upload_date, file_name, summary")
+      .select("document_id, name, no_of_pages, upload_date, file_name, summary, extracted_text")
       .eq("user_id", user_id)
       .order("upload_date", { ascending: false });
 
@@ -97,12 +97,16 @@ export class Document {
 
   static async delete(document_id) {
     try {
-      fs.unlinkSync(
-        path.join(
-          documentsUploadDir,
-          (await this.findById(document_id)).file_name
-        )
-      );
+      // Get document info first
+      const document = await this.findById(document_id);
+      
+      // Try to delete the file, but don't fail if file doesn't exist
+      if (document && document.file_name) {
+          const filePath = path.join(documentsUploadDir, document.file_name);
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+          }
+      }
 
       const { error } = await supabase
         .from("Document")
