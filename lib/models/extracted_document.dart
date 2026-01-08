@@ -1,47 +1,46 @@
 import 'dart:convert';
 
 class ExtractedDocument {
+  final String documentId; // ✅ REQUIRED
   final String? title;
   final String? date;
   final String? studentName;
   final List<String> questions;
   final String rawText;
-  
+
   ExtractedDocument({
+    required this.documentId,
     this.title,
     this.date,
     this.studentName,
     required this.questions,
-    required this.rawText, // ✅ Make sure this is here
+    required this.rawText,
   });
-  
-  factory ExtractedDocument.fromJson(String jsonString) {
-    try {
-      final json = jsonDecode(jsonString) as Map<String, dynamic>;
-      return ExtractedDocument(
-        title: json['title'] as String?,
-        date: json['date'] as String?,
-        studentName: json['studentName'] as String?,
-        questions: List<String>.from(json['questions'] as List<dynamic>? ?? []),
-        rawText: json['rawText'] as String? ?? '', // ✅ Add this
-      );
-    } catch (e) {
-      return ExtractedDocument(
-        questions: [],
-        rawText: '', // ✅ Add this
-      );
-    }
+
+  factory ExtractedDocument.fromJson(Map<String, dynamic> json) {
+    return ExtractedDocument(
+      documentId: json['id'], // backend ID
+      title: json['title'],
+      date: json['date'],
+      studentName: json['studentName'],
+      questions: List<String>.from(json['questions'] ?? []),
+      rawText: json['rawText'] ?? '',
+    );
   }
 
-  factory ExtractedDocument.fromRawText(String raw) {
-    final lines = raw.split("\n").map((e) => e.trim()).toList();
+  factory ExtractedDocument.fromRawText({
+    required String rawText,
+    required String documentId,
+  }) {
+    final lines = rawText.split('\n').map((e) => e.trim()).toList();
 
     return ExtractedDocument(
+      documentId: documentId,
       title: lines.isNotEmpty ? lines.first : null,
-      date: _extractDate(raw),
-      studentName: _extractStudent(raw),
+      date: _extractDate(rawText),
+      studentName: _extractStudent(rawText),
       questions: lines.where((e) => e.contains("?") || e.length > 20).toList(),
-      rawText: raw, // ✅ Pass the raw text
+      rawText: rawText,
     );
   }
 
