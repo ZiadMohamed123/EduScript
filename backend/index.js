@@ -4,10 +4,10 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/user.js';
 import documentRoutes from './routes/document.js';
-import quizRoutes from './routes/quiz.js';  // ← Only import once
+import quizRoutes from './routes/quiz.js';
 import { authMiddleware } from './middleware/auth.js';
 
-dotenv.config();
+dotenv.config({filepath: `./.env.${process.env.NODE_ENV || 'development'}`});
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -21,11 +21,10 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/auth', authRoutes);
 app.use('/user', authMiddleware, userRoutes);
 app.use('/document', authMiddleware, documentRoutes);
-app.use('/quiz', quizRoutes);  // ← Only register once, no authMiddleware here (it's already in the routes)
+app.use('/quiz', authMiddleware, quizRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
   res.status(err.status || 500).json({
     message: err.message || 'Internal server error',
     error: process.env.NODE_ENV === 'development' ? err : undefined
