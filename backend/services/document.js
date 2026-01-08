@@ -72,26 +72,33 @@ export const deleteDocument = async (req, res, next) => {
     const user_id = req.user.user_id;
     const { documentID } = req.params;
 
+    console.log(`Attempting to delete document: ${documentID} for user: ${user_id}`);
+
     // Check if document belongs to user
     if (!(await Document.doesDocumentBelongToUser(documentID, user_id))) {
+      console.log(`Document ${documentID} not found or access denied for user ${user_id}`);
       return res.status(404).json({
         message: "Document not found or access denied",
       });
-    };
+    }
 
     try {
       await Document.delete(documentID);
+      console.log(`Document ${documentID} deleted successfully`);
       
       return res.json({
         message: "Document deleted successfully",
       });
     } catch (error) {
+      console.error(`Error deleting document ${documentID}:`, error);
       return res.status(500).json({
         message: "Failed to delete document",
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
       });
     }
 
   } catch (error) {
+    console.error('Error in deleteDocument service:', error);
     next(error);
   }
 };

@@ -1,65 +1,339 @@
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import '../screens/documents_list_page.dart';
+import '../utils/http_client.dart';
 
 /// Document Service
-/// Manages document storage and retrieval
-/// In a real app, this would use a database or backend API
+/// Manages document storage and retrieval from backend API
 class DocumentService {
   static final DocumentService _instance = DocumentService._internal();
   factory DocumentService() => _instance;
   DocumentService._internal();
 
-  // Mock data - in a real app, this would come from a database
-  List<Document> _documents = [
-    Document(
-      id: '1',
-      title: 'Math Lecture Notes',
-      dateCreated: DateTime.now().subtract(const Duration(days: 2)),
-      pageCount: 5,
-    ),
-    Document(
-      id: '2',
-      title: 'Physics Chapter 3',
-      dateCreated: DateTime.now().subtract(const Duration(days: 5)),
-      pageCount: 3,
-    ),
-    Document(
-      id: '3',
-      title: 'Chemistry Lab Report',
-      dateCreated: DateTime.now().subtract(const Duration(days: 7)),
-      pageCount: 8,
-    ),
-  ];
+  List<Document> _cachedDocuments = [];
+  DateTime? _lastFetchTime;
+  static const Duration _cacheDuration = Duration(minutes: 5);
 
-  /// Get all documents
-  List<Document> getAllDocuments() {
-    return List.unmodifiable(_documents);
+  // Cache for document summaries (documentId -> summary)
+  final Map<String, String?> _summaryCache = {};
+  // Cache for document extracted_text (documentId -> extracted_text)
+  final Map<String, String?> _extractedTextCache = {};
+  DateTime? _lastSummaryFetchTime;
+
+  /// Get all documents from API
+  Future<List<Document>> getAllDocuments() async {
+    // Return cached data if still fresh
+    if (_lastFetchTime != null &&
+        DateTime.now().difference(_lastFetchTime!) < _cacheDuration &&
+        _cachedDocuments.isNotEmpty) {
+      return List.unmodifiable(_cachedDocuments);
+    }
+
+    try {
+      // Backend automatically filters documents by user_id from JWT token
+      final response = await HttpClient.get('/document/allDocsMetaData');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final documentsList = data['documents'] as List<dynamic>? ?? [];
+
+        // Backend already filters by user, but we validate here as well
+        // All documents returned should belong to the current logged-in user
+        _cachedDocuments = documentsList.map((doc) {
+          final dateString =
+              doc['upload_date'] as String? ?? doc['created_at'] as String?;
+          return Document(
+            id: doc['document_id'] as String? ?? '',
+            title: doc['name'] as String? ?? 'Untitled Document',
+            dateCreated: _parseDate(dateString),
+            pageCount: (doc['no_of_pages'] as num?)?.toInt() ?? 1,
+          );
+        }).toList();
+
+        // Clear cache on logout to prevent showing other users' documents
+        // This is handled by clearCache() which should be called on logout
+
+        _lastFetchTime = DateTime.now();
+        return List.unmodifiable(_cachedDocuments);
+      } else if (response.statusCode == 401) {
+        throw Exception('Unauthorized: Please login again');
+      } else {
+        throw Exception('Failed to fetch documents: ${response.statusCode}');
+      }
+    } catch (e) {
+      // Return cached data if available, even if stale
+      if (_cachedDocuments.isNotEmpty) {
+        return List.unmodifiable(_cachedDocuments);
+      }
+      rethrow;
+    }
+  }
+
+  /// Get the last N documents sorted by date (most recent first)
+  Future<List<Document>> getRecentDocuments({int limit = 10}) async {
+    final allDocs = await getAllDocuments();
+    // Documents are already sorted by upload_date descending from API
+    return allDocs.take(limit).toList();
   }
 
   /// Get a document by ID
-  Document? getDocumentById(String id) {
+  Future<Document?> getDocumentById(String id) async {
+    final documents = await getAllDocuments();
     try {
-      return _documents.firstWhere((doc) => doc.id == id);
+      return documents.firstWhere((doc) => doc.id == id);
     } catch (e) {
       return null;
     }
   }
 
-  /// Add a new document
-  void addDocument(Document document) {
-    _documents.add(document);
+  /// Get extracted text for a specific document
+  /// This method fetches all documents metadata which includes extracted_text
+  /// and caches it for future use
+  Future<String?> getExtractedText(String documentId) async {
+    try {
+      // Check if we have it in cache first
+      if (_extractedTextCache.containsKey(documentId)) {
+        final cachedText = _extractedTextCache[documentId];
+        if (cachedText != null && cachedText.trim().isNotEmpty) {
+          return cachedText;
+        }
+      }
+
+      // Fetch all documents metadata (which includes extracted_text)
+      final response = await HttpClient.get('/document/allDocsMetaData');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final documentsList = data['documents'] as List<dynamic>? ?? [];
+
+        // Find the specific document and get its extracted text
+        for (var doc in documentsList) {
+          final docId = doc['document_id'] as String?;
+          final extractedText = doc['extracted_text'] as String?;
+          
+          // Cache all extracted texts while we're at it
+          if (docId != null && extractedText != null && extractedText.isNotEmpty) {
+            _extractedTextCache[docId] = extractedText;
+          }
+        }
+
+        // Return the requested document's extracted text
+        if (_extractedTextCache.containsKey(documentId)) {
+          final text = _extractedTextCache[documentId];
+          if (text != null && text.trim().isNotEmpty) {
+            return text;
+          }
+        }
+
+        // Document found but no extracted text available
+        return null;
+      } else if (response.statusCode == 401) {
+        throw Exception('Unauthorized: Please login again');
+      } else {
+        throw Exception('Failed to fetch document data: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error fetching extracted text: $e');
+    }
   }
 
-  /// Delete a document
-  void deleteDocument(String id) {
-    _documents.removeWhere((doc) => doc.id == id);
+  /// Parse date string from API
+  DateTime _parseDate(String? dateString) {
+    if (dateString == null || dateString.isEmpty) {
+      return DateTime.now();
+    }
+    try {
+      return DateTime.parse(dateString);
+    } catch (e) {
+      return DateTime.now();
+    }
   }
 
-  /// Update a document
-  void updateDocument(Document document) {
-    final index = _documents.indexWhere((doc) => doc.id == document.id);
-    if (index != -1) {
-      _documents[index] = document;
+  /// Clear cache (call this after adding/deleting documents)
+  void clearCache() {
+    _cachedDocuments.clear();
+    _extractedTextCache.clear();
+    _lastFetchTime = null;
+    _summaryCache.clear();
+    _extractedTextCache.clear();
+    _lastSummaryFetchTime = null;
+  }
+
+  /// Update summary in cache (call after updating summary)
+  void updateSummaryCache(String id, String? summary) {
+    _summaryCache[id] = summary;
+  }
+
+  /// Update extracted_text in cache
+  void updateExtractedTextCache(String id, String? extractedText) {
+    _extractedTextCache[id] = extractedText;
+  }
+
+  /// Get document data (summary and extracted_text) from API
+  /// According to API docs: GET /document/allDocsMetaData returns both fields
+  /// Uses cache if available to avoid unnecessary API calls
+  Future<Map<String, String?>> getDocumentData(String id) async {
+    try {
+      // Check cache first (very fast) - both summary and extracted_text
+      if (_summaryCache.containsKey(id) &&
+          _extractedTextCache.containsKey(id)) {
+        final cachedSummary = _summaryCache[id];
+        final cachedExtractedText = _extractedTextCache[id];
+
+        // If cache is fresh, return cached values
+        if (_lastSummaryFetchTime != null &&
+            DateTime.now().difference(_lastSummaryFetchTime!) <
+                _cacheDuration) {
+          return {
+            'summary':
+                (cachedSummary != null && cachedSummary.trim().isNotEmpty)
+                    ? cachedSummary
+                    : null,
+            'extracted_text': (cachedExtractedText != null &&
+                    cachedExtractedText.trim().isNotEmpty)
+                ? cachedExtractedText
+                : null,
+          };
+        }
+      }
+
+      // Cache expired or not found, fetch from API
+      // According to API docs: GET /document/allDocsMetaData returns documents with summary and extracted_text
+      final response = await HttpClient.get('/document/allDocsMetaData');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final documentsList = data['documents'] as List<dynamic>? ?? [];
+
+        // Update both caches for all documents
+        _summaryCache.clear();
+        _extractedTextCache.clear();
+        String? foundSummary;
+        String? foundExtractedText;
+
+        for (final doc in documentsList) {
+          final docId = doc['document_id'] as String? ?? '';
+          final summary = doc['summary'] as String?;
+          // Try both snake_case and camelCase for extracted_text
+          final extractedText = doc['extracted_text'] as String? ??
+              doc['extractedText'] as String?;
+
+          // Cache summary
+          _summaryCache[docId] =
+              (summary != null && summary.trim().isNotEmpty) ? summary : null;
+
+          // Cache extracted_text
+          _extractedTextCache[docId] =
+              (extractedText != null && extractedText.trim().isNotEmpty)
+                  ? extractedText
+                  : null;
+
+          if (docId == id) {
+            foundSummary = _summaryCache[docId];
+            foundExtractedText = _extractedTextCache[docId];
+
+            // Debug: Print what we actually received
+            debugPrint(
+                'Document $id - Summary: ${foundSummary != null ? "exists (${foundSummary.length} chars)" : "null"}');
+            debugPrint(
+                'Document $id - ExtractedText: ${foundExtractedText != null ? "exists (${foundExtractedText.length} chars)" : "null"}');
+            debugPrint('Document $id - Available keys: ${doc.keys.toList()}');
+          }
+        }
+
+        _lastSummaryFetchTime = DateTime.now();
+        return {
+          'summary': foundSummary,
+          'extracted_text': foundExtractedText,
+        };
+      } else if (response.statusCode == 401) {
+        throw Exception('Unauthorized: Please login again');
+      } else {
+        throw Exception('Failed to fetch documents: ${response.statusCode}');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Get document summary from the documents list
+  /// Uses cache if available to avoid unnecessary API calls
+  Future<String?> getDocumentSummary(String id) async {
+    final data = await getDocumentData(id);
+    return data['summary'];
+  }
+
+  /// Update document summary
+  Future<void> updateDocumentSummary(String id, String summary) async {
+    try {
+      // Body should include summary field
+      final response = await HttpClient.put(
+        '/document/edit/$id',
+        body: {
+          'summary': summary,
+        },
+      );
+
+      if (response.statusCode == 200) {
+        updateSummaryCache(id, summary);
+        _cachedDocuments.clear();
+        _lastFetchTime = null;
+      } else if (response.statusCode == 401) {
+        throw Exception('Unauthorized: Please login again');
+      } else if (response.statusCode == 404) {
+        throw Exception('Document not found');
+      } else {
+        final errorData = response.body.isNotEmpty
+            ? jsonDecode(response.body) as Map<String, dynamic>?
+            : null;
+        final errorMessage = errorData?['message'] as String?;
+        throw Exception(
+            errorMessage ?? 'Failed to update summary: ${response.statusCode}');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Delete a document from API
+  /// This deletes the document from the database and the file from storage
+  Future<void> deleteDocument(String id) async {
+    try {
+      if (id.isEmpty) {
+        throw Exception('Document ID cannot be empty');
+      }
+      debugPrint('Deleting document with ID: $id');
+      final response = await HttpClient.delete('/document/delete/$id');
+
+      debugPrint('Delete response status: ${response.statusCode}');
+      debugPrint('Delete response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        debugPrint('Document deleted successfully from database');
+        clearCache();
+        _cachedDocuments.removeWhere((doc) => doc.id == id);
+        _summaryCache.remove(id);
+        _extractedTextCache.remove(id);
+      } else if (response.statusCode == 401) {
+        throw Exception('Unauthorized: Please login again');
+      } else if (response.statusCode == 404) {
+        throw Exception('Document not found or access denied');
+      } else {
+        final errorData = response.body.isNotEmpty
+            ? jsonDecode(response.body) as Map<String, dynamic>?
+            : null;
+        final errorMessage = errorData?['message'] as String?;
+        debugPrint(
+            'Delete failed with status ${response.statusCode}: $errorMessage');
+        if (response.statusCode == 500) {
+          throw Exception('Server error while deleting document. '
+              'The document file may be missing or there was a database error.');
+        }
+        throw Exception(errorMessage ?? 'Failed to delete document');
+      }
+    } catch (e) {
+      debugPrint('Error deleting document: $e');
+      rethrow;
     }
   }
 }
-

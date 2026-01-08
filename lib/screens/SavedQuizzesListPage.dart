@@ -1,39 +1,24 @@
 import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
-import '../services/document_service.dart';
-import 'quiz_generator_page.dart';
+import '../services/QuizService.dart';
 
-class Document {
-  final String id;
-  final String title;
-  final DateTime dateCreated;
-  final String? thumbnailPath;
-  final int pageCount;
-
-  Document({
-    required this.id,
-    required this.title,
-    required this.dateCreated,
-    this.thumbnailPath,
-    this.pageCount = 1,
-  });
-}
-
-class DocumentsListPage extends StatefulWidget {
+class SavedQuizzesListPage extends StatefulWidget {
   final bool showRecentsOnly;
+  final String? documentId; // NEW: Optional document ID to filter quizzes
 
-  const DocumentsListPage({
+  const SavedQuizzesListPage({
     super.key,
     this.showRecentsOnly = false,
+    this.documentId, // NEW: Add document ID parameter
   });
 
   @override
-  State<DocumentsListPage> createState() => _DocumentsListPageState();
+  State<SavedQuizzesListPage> createState() => _SavedQuizzesListPageState();
 }
 
-class _DocumentsListPageState extends State<DocumentsListPage> {
-  final DocumentService _documentService = DocumentService();
-  List<Document> _documents = [];
+class _SavedQuizzesListPageState extends State<SavedQuizzesListPage> {
+  final QuizService _quizService = QuizService();
+  List<SavedQuiz> _quizzes = [];
   String _searchQuery = '';
   String _sortBy = 'date'; // 'date' or 'name'
 
@@ -42,25 +27,30 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
   @override
   void initState() {
     super.initState();
-    _loadDocuments();
+    _loadQuizzes();
   }
 
-  Future<void> _loadDocuments() async {
+  Future<void> _loadQuizzes() async {
     setState(() {
       _isLoading = true;
     });
 
     try {
-      List<Document> documents;
-      if (widget.showRecentsOnly) {
-        documents = await _documentService.getRecentDocuments(limit: 10);
+      List<SavedQuiz> quizzes;
+      
+      // NEW: Check if we should filter by document ID
+      if (widget.documentId != null) {
+        // Fetch quizzes for specific document
+        quizzes = await _quizService.getQuizzesByDocument(widget.documentId!);
+      } else if (widget.showRecentsOnly) {
+        quizzes = await _quizService.getRecentQuizzes(limit: 10);
       } else {
-        documents = await _documentService.getAllDocuments();
+        quizzes = await _quizService.getAllQuizzes();
       }
 
       if (mounted) {
         setState(() {
-          _documents = documents;
+          _quizzes = quizzes;
           _isLoading = false;
         });
       }
@@ -71,7 +61,7 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to load documents: ${e.toString()}'),
+            content: Text('Failed to load quizzes: ${e.toString()}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -81,23 +71,28 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
 
   @override
   Widget build(BuildContext context) {
-    final filteredDocuments = _documents.where((doc) {
-      return doc.title.toLowerCase().contains(_searchQuery.toLowerCase());
+    final filteredQuizzes = _quizzes.where((quiz) {
+      return quiz.name.toLowerCase().contains(_searchQuery.toLowerCase());
     }).toList();
 
-    // Sort documents
-    filteredDocuments.sort((a, b) {
+    // Sort quizzes
+    filteredQuizzes.sort((a, b) {
       if (_sortBy == 'date') {
         return b.dateCreated.compareTo(a.dateCreated);
       } else {
-        return a.title.compareTo(b.title);
+        return a.name.compareTo(b.name);
       }
     });
 
     return Scaffold(
       appBar: AppBar(
-        title:
-            Text(widget.showRecentsOnly ? 'Recent Documents' : 'My Documents'),
+        title: Text(
+          widget.documentId != null
+              ? 'Document Quizzes' // NEW: Different title when filtering by document
+              : widget.showRecentsOnly
+                  ? 'Recent Quizzes'
+                  : 'My Quizzes'
+        ),
         elevation: 0,
         actions: [
           PopupMenuButton<String>(
@@ -149,7 +144,7 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
                   },
                   style: TextStyle(color: scheme.onSurface),
                   decoration: InputDecoration(
-                    hintText: 'Search documents...',
+                    hintText: 'Search quizzes...',
                     hintStyle: TextStyle(
                         color: scheme.onSurfaceVariant.withOpacity(0.6)),
                     prefixIcon: Icon(Icons.search, color: scheme.primary),
@@ -185,11 +180,11 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
             },
           ),
 
-          // Documents List
+          // Quizzes List
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
-                : filteredDocuments.isEmpty
+                : filteredQuizzes.isEmpty
                     ? _buildEmptyState()
                     : LayoutBuilder(
                         builder: (context, constraints) {
@@ -201,7 +196,7 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
                               : 1;
 
                           if (isLandscape && crossAxisCount > 1) {
-                            // Grid layout for landscape - improved spacing
+                            // Grid layout for landscape
                             return GridView.builder(
                               padding: EdgeInsets.symmetric(
                                 horizontal:
@@ -218,16 +213,16 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
                                 childAspectRatio:
                                     constraints.maxWidth > 800 ? 1.3 : 1.2,
                               ),
-                              itemCount: filteredDocuments.length,
+                              itemCount: filteredQuizzes.length,
                               itemBuilder: (context, index) {
-                                return _DocumentCard(
-                                  document: filteredDocuments[index],
+                                return _QuizCard(
+                                  quiz: filteredQuizzes[index],
                                   onTap: () {
-                                    _showDocumentOptions(
-                                        context, filteredDocuments[index]);
+                                    _showQuizOptions(
+                                        context, filteredQuizzes[index]);
                                   },
                                   onDelete: () {
-                                    _deleteDocument(filteredDocuments[index]);
+                                    _deleteQuiz(filteredQuizzes[index]);
                                   },
                                 );
                               },
@@ -237,16 +232,16 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
                             return ListView.builder(
                               padding:
                                   const EdgeInsets.symmetric(horizontal: 16),
-                              itemCount: filteredDocuments.length,
+                              itemCount: filteredQuizzes.length,
                               itemBuilder: (context, index) {
-                                return _DocumentCard(
-                                  document: filteredDocuments[index],
+                                return _QuizCard(
+                                  quiz: filteredQuizzes[index],
                                   onTap: () {
-                                    _showDocumentOptions(
-                                        context, filteredDocuments[index]);
+                                    _showQuizOptions(
+                                        context, filteredQuizzes[index]);
                                   },
                                   onDelete: () {
-                                    _deleteDocument(filteredDocuments[index]);
+                                    _deleteQuiz(filteredQuizzes[index]);
                                   },
                                 );
                               },
@@ -266,13 +261,13 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            Icons.folder_open,
+            Icons.quiz_outlined,
             size: 64,
             color: Colors.grey.shade400,
           ),
           const SizedBox(height: 16),
           Text(
-            _searchQuery.isNotEmpty ? 'No documents found' : 'No documents yet',
+            _searchQuery.isNotEmpty ? 'No quizzes found' : 'No quizzes yet',
             style: TextStyle(
               fontSize: 18,
               color: Colors.grey.shade600,
@@ -282,7 +277,9 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
           Text(
             _searchQuery.isNotEmpty
                 ? 'Try a different search term'
-                : 'Upload a document to get started',
+                : widget.documentId != null
+                    ? 'No quizzes for this document yet'
+                    : 'Generate a quiz from a document to get started',
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey.shade500,
@@ -293,17 +290,13 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
     );
   }
 
-  void _showDocumentOptions(BuildContext context, Document document) {
-    // Capture parent context and ScaffoldMessenger before showing modal
-    final parentContext = context;
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
-
+  void _showQuizOptions(BuildContext context, SavedQuiz quiz) {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (modalContext) => Column(
+      builder: (context) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           const SizedBox(height: 12),
@@ -317,61 +310,61 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
           ),
           const SizedBox(height: 20),
           ListTile(
-            leading: const Icon(Icons.summarize),
-            title: const Text('View Summary'),
-            onTap: () {
-              Navigator.pop(modalContext);
-              Navigator.pushNamed(
-                parentContext,
-                '/document-summary',
-                arguments: document,
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.quiz),
-            title: const Text('Generate QUIZ'),
+            leading: const Icon(Icons.play_arrow),
+            title: const Text('Take Quiz'),
             onTap: () async {
-              Navigator.pop(modalContext);
+              Navigator.pop(context);
+
+              // Show loading dialog
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (context) => const Center(
+                  child: Card(
+                    child: Padding(
+                      padding: EdgeInsets.all(20.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(height: 16),
+                          Text('Loading quiz...'),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
 
               try {
-                // Fetch the extracted text from the document
-                final extractedText =
-                    await _documentService.getExtractedText(document.id);
+                // Fetch quiz details with questions
+                final quizDetails =
+                    await _quizService.getQuizDetails(quiz.id);
 
-                if (extractedText == null || extractedText.isEmpty) {
-                  if (mounted) {
-                    scaffoldMessenger.showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                            'No text found in document. Please make sure the document has been processed.'),
-                        backgroundColor: Colors.orange,
-                      ),
-                    );
-                  }
-                  return;
+                // Close loading dialog
+                if (mounted) {
+                  Navigator.pop(context);
                 }
 
-                // Navigate to quiz generator with the extracted text
+                // TODO: Navigate to quiz taking page with the questions
+                // You'll need to create a QuizTakingPage that displays the quiz
                 if (mounted) {
-                  Navigator.push(
-                    parentContext,
-                    MaterialPageRoute(
-                      builder: (_) => QuizGeneratorPage(
-                        documentId: document.id,
-                        documentTitle: document.title,
-                        extractedText: extractedText,
-                        autoGenerate: true,
-                      ),
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                          'Quiz loaded! (Navigate to quiz taking page here)'),
+                      backgroundColor: Colors.green,
                     ),
                   );
                 }
               } catch (e) {
+                // Close loading dialog if still open
                 if (mounted) {
-                  scaffoldMessenger.showSnackBar(
+                  Navigator.pop(context);
+
+                  ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content:
-                          Text('Failed to load document text: ${e.toString()}'),
+                      content: Text('Failed to load quiz: ${e.toString()}'),
                       backgroundColor: Colors.red,
                     ),
                   );
@@ -380,19 +373,24 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.library_books),
-            title: const Text('View Quizzes'),
+            leading: const Icon(Icons.visibility),
+            title: const Text('View Details'),
             onTap: () {
-              Navigator.pop(modalContext);
-              Navigator.pushNamed(parentContext, '/saved-quizzes');
+              Navigator.pop(context);
+              // TODO: Navigate to quiz details/preview page
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Quiz details page coming soon!'),
+                ),
+              );
             },
           ),
           ListTile(
             leading: const Icon(Icons.delete, color: Colors.red),
             title: const Text('Delete', style: TextStyle(color: Colors.red)),
             onTap: () {
-              Navigator.pop(modalContext);
-              _deleteDocument(document);
+              Navigator.pop(context);
+              _deleteQuiz(quiz);
             },
           ),
         ],
@@ -400,12 +398,12 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
     );
   }
 
-  void _deleteDocument(Document document) {
+  void _deleteQuiz(SavedQuiz quiz) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Document'),
-        content: Text('Are you sure you want to delete "${document.title}"?'),
+        title: const Text('Delete Quiz'),
+        content: Text('Are you sure you want to delete "${quiz.name}"?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -415,12 +413,12 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
             onPressed: () async {
               Navigator.pop(context);
               try {
-                await _documentService.deleteDocument(document.id);
-                await _loadDocuments();
+                await _quizService.deleteQuiz(quiz.id);
+                await _loadQuizzes();
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Document deleted successfully'),
+                      content: Text('Quiz deleted successfully'),
                       backgroundColor: Colors.green,
                     ),
                   );
@@ -429,8 +427,7 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content:
-                          Text('Failed to delete document: ${e.toString()}'),
+                      content: Text('Failed to delete quiz: ${e.toString()}'),
                       backgroundColor: Colors.red,
                     ),
                   );
@@ -445,13 +442,13 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
   }
 }
 
-class _DocumentCard extends StatelessWidget {
-  final Document document;
+class _QuizCard extends StatelessWidget {
+  final SavedQuiz quiz;
   final VoidCallback onTap;
   final VoidCallback onDelete;
 
-  const _DocumentCard({
-    required this.document,
+  const _QuizCard({
+    required this.quiz,
     required this.onTap,
     required this.onDelete,
   });
@@ -469,7 +466,7 @@ class _DocumentCard extends StatelessWidget {
           padding: const EdgeInsets.all(16.0),
           child: Row(
             children: [
-              // Thumbnail/Icon
+              // Icon
               Container(
                 width: 60,
                 height: 60,
@@ -478,20 +475,20 @@ class _DocumentCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
-                  Icons.description,
+                  Icons.quiz,
                   color: AppColors.primary,
                   size: 32,
                 ),
               ),
               const SizedBox(width: 16),
 
-              // Document Info
+              // Quiz Info
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      document.title,
+                      quiz.name,
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -509,7 +506,7 @@ class _DocumentCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          _formatDate(document.dateCreated),
+                          _formatDate(quiz.dateCreated),
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey.shade600,
@@ -517,13 +514,13 @@ class _DocumentCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 12),
                         Icon(
-                          Icons.pages,
+                          Icons.question_answer,
                           size: 14,
                           color: Colors.grey.shade600,
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          '${document.pageCount} ${document.pageCount == 1 ? 'page' : 'pages'}',
+                          '${quiz.questionCount} ${quiz.questionCount == 1 ? 'question' : 'questions'}',
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey.shade600,
@@ -531,6 +528,31 @@ class _DocumentCard extends StatelessWidget {
                         ),
                       ],
                     ),
+                    if (quiz.documentName != null) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.description,
+                            size: 14,
+                            color: Colors.grey.shade600,
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              quiz.documentName!,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade600,
+                                fontStyle: FontStyle.italic,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -539,6 +561,16 @@ class _DocumentCard extends StatelessWidget {
               PopupMenuButton(
                 icon: const Icon(Icons.more_vert),
                 itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'take',
+                    child: Row(
+                      children: [
+                        Icon(Icons.play_arrow, size: 20),
+                        SizedBox(width: 8),
+                        Text('Take Quiz'),
+                      ],
+                    ),
+                  ),
                   const PopupMenuItem(
                     value: 'view',
                     child: Row(
@@ -561,7 +593,7 @@ class _DocumentCard extends StatelessWidget {
                   ),
                 ],
                 onSelected: (value) {
-                  if (value == 'view') {
+                  if (value == 'take' || value == 'view') {
                     onTap();
                   } else if (value == 'delete') {
                     onDelete();
@@ -589,4 +621,5 @@ class _DocumentCard extends StatelessWidget {
       return '${date.day}/${date.month}/${date.year}';
     }
   }
+  
 }

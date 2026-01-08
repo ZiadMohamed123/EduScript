@@ -2,7 +2,7 @@ name: quiz_generator
 description: A Flutter app to generate quizzes using OpenAI API
 publish_to: "none"
 
-version: 1.0.0+1
+version: 1.0.0+0
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
@@ -29,12 +29,7 @@ dependencies:
   pdf: ^3.10.8
 
 
-
-
-
-  # JSON model support (if you need)
   collection: ^1.17.2
-
 
 dev_dependencies:
   flutter_test:
@@ -46,5 +41,4 @@ flutter:
 
   # Assets
   assets:
-    - assets/
-    - android/app/src/main/assets/tessdata/
+    - assets/.env

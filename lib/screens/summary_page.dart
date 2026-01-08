@@ -17,9 +17,13 @@ class _SummaryPageState extends State<SummaryPage> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final List<ChatMessage> _messages = [];
+  final DocumentService _documentService = DocumentService();
   bool _isLoading = false;
   Document? _selectedDocument;
   OpenRouterService? _openRouterService;
+  String? _generatedSummary;
+  bool _isGeneratingSummary = false;
+  bool _showSummaryView = false;
 
   bool _isServiceInitialized() {
     return _openRouterService != null;
@@ -30,7 +34,15 @@ class _SummaryPageState extends State<SummaryPage> {
     super.initState();
     _selectedDocument = widget.document;
     _initializeService();
-    _addWelcomeMessage();
+
+    // Auto-generate summary if document is provided
+    if (_selectedDocument != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _generateSummaryAutomatically();
+      });
+    } else {
+      _addWelcomeMessage();
+    }
   }
 
   void _initializeService() {
@@ -66,19 +78,113 @@ class _SummaryPageState extends State<SummaryPage> {
       _messages.add(
         ChatMessage(
           text: _selectedDocument != null
-              ? 'Hi! I\'m your AI study assistant. I can help you with "${_selectedDocument!.title}". '
-                    'Ask me to:\n\n'
-                    '• Generate a summary\n'
-                    '• Explain key concepts\n'
-                    '• Create study notes\n'
-                    '• Answer questions about the content\n'
-                    '• Compare topics or documents'
-              : 'Hi! I\'m your AI study assistant. I can help you with summaries, explanations, and study materials. '
-                    'Select a document or ask me anything about your notes!',
+              ? 'Hi! I\'m your AI tutor. I can help you understand "${_selectedDocument!.title}". '
+                  'Ask me any questions about this document:\n\n'
+                  '• What are the main concepts?\n'
+                  '• Can you explain [specific topic]?\n'
+                  '• How does [concept] work?\n'
+                  '• What is the relationship between [topic A] and [topic B]?\n'
+                  '• Can you give me examples of [concept]?\n'
+                  '• Help me understand [difficult section]'
+              : 'Hi! I\'m your AI tutor. I\'m here to answer your questions and help you learn! '
+                  'Select a document to get started, or ask me any questions about your studies.',
           isUser: false,
           timestamp: DateTime.now(),
         ),
       );
+    }
+  }
+
+  Future<void> _generateSummaryAutomatically() async {
+    if (_selectedDocument == null) {
+      _addWelcomeMessage();
+      return;
+    }
+
+    setState(() {
+      _isGeneratingSummary = true;
+      _showSummaryView = true;
+    });
+
+    try {
+      // According to API docs: GET /document/allDocsMetaData returns summary and extracted_text
+      final documentData =
+          await _documentService.getDocumentData(_selectedDocument!.id);
+      final existingSummary = documentData['summary'];
+      final extractedText = documentData['extracted_text'];
+
+      if (existingSummary != null && existingSummary.trim().isNotEmpty) {
+        // Summary exists in database, use it immediately
+        if (mounted) {
+          setState(() {
+            _generatedSummary = existingSummary;
+            _isGeneratingSummary = false;
+          });
+        }
+        return;
+      }
+
+      // No summary exists - generate one using extracted_text
+      if (extractedText == null || extractedText.trim().isEmpty) {
+        if (mounted) {
+          setState(() {
+            _isGeneratingSummary = false;
+            _showSummaryView = false;
+          });
+          _addWelcomeMessage();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  'No summary found and extracted text is not available. Cannot generate summary.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+
+      // Generate summary if service is available
+      if (!_isServiceInitialized()) {
+        if (mounted) {
+          setState(() {
+            _isGeneratingSummary = false;
+            _showSummaryView = false;
+          });
+          _addWelcomeMessage();
+        }
+        return;
+      }
+
+      // Generate new summary using extracted text
+      final summary = await _openRouterService!.generateSummary(
+        documentTitle: _selectedDocument!.title,
+        documentContent: extractedText,
+      );
+
+      // Save summary to database according to API docs: PUT /document/edit/:documentID
+      await _documentService.updateDocumentSummary(
+          _selectedDocument!.id, summary);
+
+      if (mounted) {
+        setState(() {
+          _generatedSummary = summary;
+          _isGeneratingSummary = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isGeneratingSummary = false;
+          _showSummaryView = false;
+        });
+        _addWelcomeMessage();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load summary: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -162,9 +268,35 @@ class _SummaryPageState extends State<SummaryPage> {
       if (lowerMessage.contains('summary') ||
           lowerMessage.contains('summarize')) {
         if (_selectedDocument != null) {
-          response = await _openRouterService!.generateSummary(
-            documentTitle: _selectedDocument!.title,
-          );
+          // First check if summary exists in database
+          try {
+            final documentData =
+                await _documentService.getDocumentData(_selectedDocument!.id);
+            final existingSummary = documentData['summary'];
+            final extractedText = documentData['extracted_text'];
+
+            if (existingSummary != null && existingSummary.trim().isNotEmpty) {
+              response = existingSummary;
+            } else if (extractedText != null &&
+                extractedText.trim().isNotEmpty) {
+              // No summary exists, generate one using extracted_text
+              response = await _openRouterService!.generateSummary(
+                documentTitle: _selectedDocument!.title,
+                documentContent: extractedText,
+              );
+              // Save generated summary to database
+              await _documentService.updateDocumentSummary(
+                  _selectedDocument!.id, response);
+            } else {
+              response =
+                  'No summary found and extracted text is not available. Cannot generate summary.';
+            }
+          } catch (e) {
+            // If database check fails, try generating without extracted_text
+            response = await _openRouterService!.generateSummary(
+              documentTitle: _selectedDocument!.title,
+            );
+          }
         } else {
           response = await _openRouterService!.tutorChat(
             userMessage: userMessage,
@@ -175,7 +307,7 @@ class _SummaryPageState extends State<SummaryPage> {
           lowerMessage.contains('create study notes') ||
           lowerMessage.contains('key points')) {
         if (_selectedDocument != null) {
-          response = await _openRouterService!.generateStudyNotes(
+          response = await _openRouterService!.generateSummary(
             documentTitle: _selectedDocument!.title,
           );
         } else {
@@ -188,20 +320,11 @@ class _SummaryPageState extends State<SummaryPage> {
           lowerMessage.contains('what is') ||
           lowerMessage.contains('how does') ||
           lowerMessage.contains('tell me about')) {
-        // Extract concept from message
-        final concept = userMessage
-            .replaceAll(
-              RegExp(
-                r'(explain|what is|how does|tell me about)',
-                caseSensitive: false,
-              ),
-              '',
-            )
-            .trim();
+       
 
-        response = await _openRouterService!.explainConcept(
-          concept: concept.isNotEmpty ? concept : userMessage,
-          documentTitle: _selectedDocument?.title,
+        response = await _openRouterService!.tutorChat(
+          userMessage: userMessage,
+          conversationHistory: conversationHistory,
         );
       } else {
         // General chat
@@ -227,8 +350,7 @@ class _SummaryPageState extends State<SummaryPage> {
       }
     } catch (e, stackTrace) {
       if (mounted) {
-        debugPrint('✗ Error in _generateResponse: $e');
-        debugPrint('Stack trace: $stackTrace');
+       
 
         String errorMessage = 'Sorry, I encountered an error.\n\n';
 
@@ -236,8 +358,7 @@ class _SummaryPageState extends State<SummaryPage> {
             e.toString().contains('not loaded') ||
             e.toString().contains('not initialized') ||
             e.toString().contains('Failed to initialize')) {
-          errorMessage +=
-              '**API Key Not Configured**\n\n'
+          errorMessage += '**API Key Not Configured**\n\n'
               'Please:\n'
               '1. Get your free API key from: https://openrouter.ai/keys\n'
               '2. Add it to your .env file:\n'
@@ -248,8 +369,7 @@ class _SummaryPageState extends State<SummaryPage> {
         } else if (e.toString().contains('Data Policy Error') ||
             e.toString().contains('data policy') ||
             e.toString().contains('Free model publication')) {
-          errorMessage +=
-              '**OpenRouter Data Policy Error**\n\n'
+          errorMessage += '**OpenRouter Data Policy Error**\n\n'
               'Your OpenRouter account needs to be configured for free models.\n\n'
               '**Fix this:**\n'
               '1. Go to: https://openrouter.ai/settings/privacy\n'
@@ -260,8 +380,7 @@ class _SummaryPageState extends State<SummaryPage> {
         } else if (e.toString().contains('400') ||
             e.toString().contains('401') ||
             e.toString().contains('403')) {
-          errorMessage +=
-              '**API Key Error**\n\n'
+          errorMessage += '**API Key Error**\n\n'
               'Your API key may be invalid or expired.\n\n'
               'Please:\n'
               '1. Check your API key at: https://openrouter.ai/keys\n'
@@ -269,8 +388,7 @@ class _SummaryPageState extends State<SummaryPage> {
               '3. Verify you have credits/balance on OpenRouter\n'
               '4. Restart the app';
         } else {
-          errorMessage +=
-              'Error: ${e.toString()}\n\n'
+          errorMessage += 'Error: ${e.toString()}\n\n'
               'Please check:\n'
               '• Your OPENROUTER_API_KEY is set correctly in .env file\n'
               '• You have internet connection\n'
@@ -295,29 +413,42 @@ class _SummaryPageState extends State<SummaryPage> {
   }
 
   void _selectDocument() async {
-    final documents = DocumentService().getAllDocuments();
-    
-    if (documents.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No documents available. Scan a document first!'),
-        ),
+    try {
+      final documents = await DocumentService().getAllDocuments();
+
+      if (documents.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No documents available. Scan a document first!'),
+            ),
+          );
+        }
+        return;
+      }
+
+      final selected = await showDialog<Document>(
+        context: context,
+        builder: (context) => _DocumentSelectorDialog(documents: documents),
       );
-      return;
-    }
 
-    final selected = await showDialog<Document>(
-      context: context,
-      builder: (context) => _DocumentSelectorDialog(documents: documents),
-    );
-
-    if (selected != null && mounted) {
-      setState(() {
-        _selectedDocument = selected;
-        // Clear messages and show new welcome message for the selected document
-        _messages.clear();
-        _addWelcomeMessage();
-      });
+      if (selected != null && mounted) {
+        setState(() {
+          _selectedDocument = selected;
+          // Clear messages and show new welcome message for the selected document
+          _messages.clear();
+          _addWelcomeMessage();
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load documents: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -331,7 +462,7 @@ class _SummaryPageState extends State<SummaryPage> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('AI Study Assistant'),
+            const Text('AI Tutor'),
             if (_selectedDocument != null)
               Text(
                 _selectedDocument!.title,
@@ -364,116 +495,357 @@ class _SummaryPageState extends State<SummaryPage> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Quick Actions Bar
-          if (_selectedDocument != null)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: scheme.surfaceVariant.withOpacity(isDark ? 0.3 : 0.8),
-                border: Border(
-                  bottom: BorderSide(color: scheme.outlineVariant),
-                ),
-              ),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isLandscape =
+              MediaQuery.of(context).orientation == Orientation.landscape;
+          final maxContentWidth = isLandscape ? 1000.0 : double.infinity;
+
+          return Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: maxContentWidth),
+              child: _showSummaryView && _generatedSummary != null
+                  ? _buildSummaryPDFView()
+                  : Column(
+                      children: [
+                        // Quick Actions Bar
+                        if (_selectedDocument != null && !_showSummaryView)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: scheme.surfaceVariant
+                                  .withOpacity(isDark ? 0.3 : 0.8),
+                              border: Border(
+                                bottom:
+                                    BorderSide(color: scheme.outlineVariant),
+                              ),
+                            ),
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                children: [
+                                  _QuickActionChip(
+                                    icon: Icons.summarize,
+                                    label: 'Summary',
+                                    onTap: () =>
+                                        _sendMessage('Generate a summary'),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  _QuickActionChip(
+                                    icon: Icons.note,
+                                    label: 'Study Notes',
+                                    onTap: () =>
+                                        _sendMessage('Create study notes'),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  _QuickActionChip(
+                                    icon: Icons.help_outline,
+                                    label: 'Explain',
+                                    onTap: () => _sendMessage(
+                                        'Explain the main concepts'),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+
+                        // Summary Loading or Messages List
+                        Expanded(
+                          child: _isGeneratingSummary
+                              ? _buildSummaryLoadingView()
+                              : (_messages.isEmpty
+                                  ? _buildEmptyState()
+                                  : ListView.builder(
+                                      controller: _scrollController,
+                                      padding: const EdgeInsets.all(16),
+                                      itemCount: _messages.length +
+                                          (_isLoading ? 1 : 0),
+                                      itemBuilder: (context, index) {
+                                        if (index == _messages.length) {
+                                          return _buildTypingIndicator();
+                                        }
+                                        return _ChatBubble(
+                                            message: _messages[index]);
+                                      },
+                                    )),
+                        ),
+
+                        // Input Area
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: scheme.surface,
+                            boxShadow: [
+                              BoxShadow(
+                                color: isDark
+                                    ? Colors.black.withOpacity(0.4)
+                                    : Colors.grey.shade300,
+                                blurRadius: 6,
+                                offset: const Offset(0, -2),
+                              ),
+                            ],
+                          ),
+                          child: SafeArea(
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    controller: _messageController,
+                                    decoration: InputDecoration(
+                                      hintText:
+                                          'Ask about summaries, concepts, or study materials...',
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(24),
+                                        borderSide: BorderSide(
+                                            color: scheme.outlineVariant),
+                                      ),
+                                      filled: true,
+                                      fillColor:
+                                          scheme.surfaceVariant.withOpacity(
+                                        isDark ? 0.3 : 0.7,
+                                      ),
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                        horizontal: 20,
+                                        vertical: 10,
+                                      ),
+                                    ),
+                                    style: TextStyle(
+                                      color: isDark
+                                          ? scheme.onSurface
+                                          : Colors.black87,
+                                    ),
+                                    maxLines: 1,
+                                    textInputAction: TextInputAction.send,
+                                    onSubmitted: (value) {
+                                      if (value.trim().isNotEmpty) {
+                                        _sendMessage(value);
+                                      }
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                CircleAvatar(
+                                  backgroundColor: scheme.primary,
+                                  child: IconButton(
+                                    icon: Icon(Icons.send,
+                                        color: scheme.onPrimary),
+                                    onPressed: () =>
+                                        _sendMessage(_messageController.text),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSummaryPDFView() {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
+
+    return Column(
+      children: [
+        // PDF Header
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isDark ? Colors.grey[900] : Colors.grey[100],
+            border: Border(
+              bottom: BorderSide(color: scheme.outlineVariant),
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.picture_as_pdf, color: Colors.red[700]),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _QuickActionChip(
-                      icon: Icons.summarize,
-                      label: 'Summary',
-                      onTap: () => _sendMessage('Generate a summary'),
+                    Text(
+                      _selectedDocument?.title ?? 'Document Summary',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                    const SizedBox(width: 8),
-                    _QuickActionChip(
-                      icon: Icons.note,
-                      label: 'Study Notes',
-                      onTap: () => _sendMessage('Create study notes'),
-                    ),
-                    const SizedBox(width: 8),
-                    _QuickActionChip(
-                      icon: Icons.help_outline,
-                      label: 'Explain',
-                      onTap: () => _sendMessage('Explain the main concepts'),
+                    Text(
+                      'Generated Summary',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: scheme.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 ),
               ),
-            ),
-
-          // Messages List
-          Expanded(
-            child: _messages.isEmpty
-                ? _buildEmptyState()
-                : ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _messages.length + (_isLoading ? 1 : 0),
-                    itemBuilder: (context, index) {
-                      if (index == _messages.length) {
-                        return _buildTypingIndicator();
-                      }
-                      return _ChatBubble(message: _messages[index]);
-                    },
-                  ),
-          ),
-
-          // Input Area
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: scheme.surface,
-              boxShadow: [
-                BoxShadow(
-                  color: isDark
-                      ? Colors.black.withOpacity(0.4)
-                      : Colors.grey.shade300,
-                  blurRadius: 6,
-                  offset: const Offset(0, -2),
-                ),
-              ],
-            ),
-            child: SafeArea(
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _messageController,
-                      decoration: InputDecoration(
-                        hintText:
-                            'Ask about summaries, concepts, or study materials...',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(24),
-                          borderSide: BorderSide(color: scheme.outlineVariant),
-                        ),
-                        filled: true,
-                        fillColor: scheme.surfaceVariant.withOpacity(
-                          isDark ? 0.3 : 0.7,
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 10,
-                        ),
-                      ),
-                      style: TextStyle(
-                        color: isDark ? scheme.onSurface : Colors.black87,
-                      ),
-                      maxLines: null,
-                      textInputAction: TextInputAction.send,
-                      onSubmitted: _sendMessage,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  CircleAvatar(
-                    backgroundColor: scheme.primary,
-                    child: IconButton(
-                      icon: Icon(Icons.send, color: scheme.onPrimary),
-                      onPressed: () => _sendMessage(_messageController.text),
-                    ),
-                  ),
-                ],
+              IconButton(
+                icon: const Icon(Icons.chat),
+                tooltip: 'Switch to Chat',
+                onPressed: () {
+                  setState(() {
+                    _showSummaryView = false;
+                    _addWelcomeMessage();
+                  });
+                },
               ),
+            ],
+          ),
+        ),
+
+        // PDF Content
+        Expanded(
+          child: Container(
+            color: Colors.white,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 800),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Document Title
+                    Text(
+                      _selectedDocument?.title ?? 'Document',
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Summary',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey[600],
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                    const Divider(height: 32),
+                    const SizedBox(height: 16),
+
+                    // Summary Content
+                    _buildFormattedSummary(_generatedSummary!),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFormattedSummary(String summary) {
+    // Split summary into paragraphs and format
+    final paragraphs = summary.split('\n\n');
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: paragraphs.map((paragraph) {
+        if (paragraph.trim().isEmpty) return const SizedBox(height: 16);
+
+        // Check if it's a heading (starts with # or is short and bold-looking)
+        final isHeading = paragraph.startsWith('#') ||
+            (paragraph.length < 100 &&
+                !paragraph.contains('.') &&
+                paragraph.split(' ').length < 10);
+
+        if (isHeading) {
+          return Padding(
+            padding: const EdgeInsets.only(top: 24, bottom: 12),
+            child: Text(
+              paragraph.replaceAll('#', '').trim(),
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+          );
+        }
+
+        // Check if it's a bullet point
+        if (paragraph.trim().startsWith('-') ||
+            paragraph.trim().startsWith('•')) {
+          final items = paragraph.split('\n');
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: items.map((item) {
+                if (item.trim().isEmpty) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.only(left: 20, bottom: 8),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('• ', style: TextStyle(fontSize: 18)),
+                      Expanded(
+                        child: Text(
+                          item.replaceAll(RegExp(r'^[-•]\s*'), '').trim(),
+                          style: const TextStyle(
+                            fontSize: 14,
+                            height: 1.6,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          );
+        }
+
+        // Regular paragraph
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: Text(
+            paragraph.trim(),
+            style: const TextStyle(
+              fontSize: 14,
+              height: 1.8,
+              color: Colors.black87,
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildSummaryLoadingView() {
+    final scheme = Theme.of(context).colorScheme;
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const CircularProgressIndicator(),
+          const SizedBox(height: 24),
+          Text(
+            'Generating summary...',
+            style: TextStyle(
+              fontSize: 16,
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Please wait while AI analyzes your document',
+            style: TextStyle(
+              fontSize: 14,
+              color: scheme.onSurfaceVariant.withOpacity(0.7),
             ),
           ),
         ],
@@ -575,9 +947,8 @@ class _ChatBubble extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Row(
-        mainAxisAlignment: message.isUser
-            ? MainAxisAlignment.end
-            : MainAxisAlignment.start,
+        mainAxisAlignment:
+            message.isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (!message.isUser) ...[
@@ -612,9 +983,8 @@ class _ChatBubble extends StatelessWidget {
                   Text(
                     message.text,
                     style: TextStyle(
-                      color: message.isUser
-                          ? scheme.onPrimary
-                          : scheme.onSurface,
+                      color:
+                          message.isUser ? scheme.onPrimary : scheme.onSurface,
                       fontSize: 15,
                       height: 1.4,
                     ),
@@ -692,7 +1062,7 @@ class _DocumentSelectorDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    
+
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
@@ -730,7 +1100,7 @@ class _DocumentSelectorDialog extends StatelessWidget {
                 ],
               ),
             ),
-            
+
             // Documents List
             Flexible(
               child: documents.isEmpty

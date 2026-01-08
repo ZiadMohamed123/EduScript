@@ -22,16 +22,14 @@ class DocumentApiService {
     request.headers['Authorization'] = 'Bearer $token';
 
     // File (MUST match multer field name)
-request.files.add(
-  await http.MultipartFile.fromPath(
-    'document',
-    imageFile.path,
-    filename: imageFile.path.split('/').last, // IMPORTANT
-    contentType: MediaType('application', 'pdf'), // 🔥 THE FIX
-  ),
-);
-
-
+    request.files.add(
+      await http.MultipartFile.fromPath(
+        'document',
+        imageFile.path,
+        filename: imageFile.path.split('/').last, // IMPORTANT
+        contentType: MediaType('application', 'pdf'), // 🔥 THE FIX
+      ),
+    );
 
     // Fields
     request.fields['name'] = name ?? imageFile.path.split('/').last;
