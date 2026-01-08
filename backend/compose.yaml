@@ -1,0 +1,53 @@
+services:
+  app-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: edu_script_backend-dev
+    ports:
+      - '${PORT:-5000}:5000' # API server
+    environment:
+      NODE_ENV: development
+      SUPABASE_URL: '${SUPABASE_URL}'
+      SUPABASE_ANON_KEY: '${SUPABASE_ANON_KEY}'
+      JWT_SECRET: '${JWT_SECRET}'
+    volumes:
+      - ./:/app/src:ro
+      - ./package.json:/app/package.json
+    develop:
+      watch:
+        - action: sync
+          path: ./backend/src
+          target: /app/src
+        - action: rebuild
+          path: ./package.json
+    restart: unless-stopped
+
+  app-prod:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: edu_script_backend-prod
+    ports:
+      - '${PORT:-5000}:5000'
+    environment:
+      NODE_ENV: production
+      SUPABASE_URL: '${SUPABASE_URL}'
+      SUPABASE_ANON_KEY: '${SUPABASE_ANON_KEY}'
+      JWT_SECRET: '${JWT_SECRET}'
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: '${PROD_MEMORY_LIMIT:-2G}'
+          cpus: '${PROD_CPU_LIMIT:-1.0}'
+        reservations:
+          memory: '${PROD_MEMORY_RESERVATION:-512M}'
+          cpus: '${PROD_CPU_RESERVATION:-0.25}'
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+    profiles:
+      - prod
