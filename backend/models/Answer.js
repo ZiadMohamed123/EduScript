@@ -23,13 +23,20 @@ export class Answer {
   }
 
   static async create(questionID, answerData) {
+    const insertData = {
+      question_id: questionID,
+      text: answerData.text,
+      is_correct: answerData.isCorrect || false,
+    };
+
+    // Add user_selected if provided
+    if (answerData.userSelected !== undefined) {
+      insertData.user_selected = answerData.userSelected;
+    }
+
     const { data, error } = await supabase
       .from("Answer")
-      .insert({
-        question_id: questionID,
-        text: answerData.text,
-        is_correct: answerData.isCorrect || false,
-      })
+      .insert(insertData)
       .select()
       .single();
 
@@ -41,6 +48,7 @@ export class Answer {
     const updatePayload = {};
     if (updateData.text !== undefined) updatePayload.text = updateData.text;
     if (updateData.isCorrect !== undefined) updatePayload.is_correct = updateData.isCorrect;
+    if (updateData.userSelected !== undefined) updatePayload.user_selected = updateData.userSelected;
 
     const { data, error } = await supabase
       .from("Answer")
