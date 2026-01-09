@@ -224,13 +224,7 @@ class QuizResultsPage extends StatelessWidget {
                         color: Colors.green.shade100,
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Text(
-                        '✅ Loaded ${questions.length} questions',
-                        style: TextStyle(
-                          color: Colors.green.shade900,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                    
                     ),
                   const SizedBox(height: 16),
 

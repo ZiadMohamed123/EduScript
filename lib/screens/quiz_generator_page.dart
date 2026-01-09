@@ -352,8 +352,13 @@ class _QuizGeneratorPageState extends State<QuizGeneratorPage> {
       _questions = [];
       _quizResults = null;
       _currentIndex = 0;
-      _notesController.clear();
+      // Don't clear _notesController - we want to keep the text to generate another quiz
     });
+    
+    // Automatically generate a new quiz if we have text
+    if (_notesController.text.isNotEmpty) {
+      _generateQuiz();
+    }
   }
 
   Widget _buildQuestionContent(Question question) {
