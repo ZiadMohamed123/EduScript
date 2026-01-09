@@ -148,7 +148,7 @@ class _ChatWidgetState extends State<ChatWidget> {
           'Would you like me to elaborate on any specific aspect?';
     } else {
       response =
-          'I understand you\'re asking about "${userMessage}". '
+          'I understand you\'re asking about "$userMessage". '
           '${_selectedDocument != null ? "Based on \"${_selectedDocument!.title}\", " : ""}'
           'I can help you with:\n\n'
           '• **Summaries** - Get concise overviews\n'
@@ -313,7 +313,7 @@ class _ChatWidgetState extends State<ChatWidget> {
                   Expanded(
                     child: TextField(
                       controller: _messageController,
-                      style: TextStyle(color: AppColors.textPrimary),
+                      style: const TextStyle(color: AppColors.textPrimary),
                       decoration: InputDecoration(
                         hintText: 'Ask me anything...',
                         border: OutlineInputBorder(

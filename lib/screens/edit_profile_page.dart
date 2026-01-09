@@ -293,7 +293,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                         CircleAvatar(
                                           radius: 80,
                                           backgroundColor: isDark
-                                              ? scheme.surfaceVariant.withOpacity(0.5)
+                                              ? scheme.surfaceContainerHighest.withOpacity(0.5)
                                               : AppColors.primary.withOpacity(0.1),
                                           backgroundImage: _getProfileImage(),
                                           child: _selectedImage == null && _currentProfilePicture == null
@@ -369,7 +369,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         borderSide: BorderSide(color: scheme.primary, width: 2),
                       ),
                       filled: true,
-                      fillColor: scheme.surfaceVariant.withOpacity(isDark ? 0.3 : 0.7),
+                      fillColor: scheme.surfaceContainerHighest.withOpacity(isDark ? 0.3 : 0.7),
                       labelStyle: TextStyle(color: scheme.onSurfaceVariant),
                       hintStyle: TextStyle(color: scheme.onSurfaceVariant.withOpacity(0.6)),
                     ),
@@ -410,7 +410,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                         borderSide: BorderSide(color: scheme.primary, width: 2),
                                       ),
                                       filled: true,
-                                      fillColor: scheme.surfaceVariant.withOpacity(isDark ? 0.3 : 0.7),
+                                      fillColor: scheme.surfaceContainerHighest.withOpacity(isDark ? 0.3 : 0.7),
                                       labelStyle: TextStyle(color: scheme.onSurfaceVariant),
                                       hintStyle: TextStyle(color: scheme.onSurfaceVariant.withOpacity(0.6)),
                                     ),
@@ -450,7 +450,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                         borderSide: BorderSide(color: scheme.primary, width: 2),
                                       ),
                                       filled: true,
-                                      fillColor: scheme.surfaceVariant.withOpacity(isDark ? 0.3 : 0.7),
+                                      fillColor: scheme.surfaceContainerHighest.withOpacity(isDark ? 0.3 : 0.7),
                                       labelStyle: TextStyle(color: scheme.onSurfaceVariant),
                                       hintStyle: TextStyle(color: scheme.onSurfaceVariant.withOpacity(0.6)),
                                     ),
@@ -515,7 +515,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                       CircleAvatar(
                                         radius: 60,
                                         backgroundColor: isDark
-                                            ? scheme.surfaceVariant.withOpacity(0.5)
+                                            ? scheme.surfaceContainerHighest.withOpacity(0.5)
                                             : AppColors.primary.withOpacity(0.1),
                                         backgroundImage: _getProfileImage(),
                                         child: _selectedImage == null && _currentProfilePicture == null
@@ -583,7 +583,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                   borderSide: BorderSide(color: scheme.primary, width: 2),
                                 ),
                                 filled: true,
-                                fillColor: scheme.surfaceVariant.withOpacity(isDark ? 0.3 : 0.7),
+                                fillColor: scheme.surfaceContainerHighest.withOpacity(isDark ? 0.3 : 0.7),
                                 labelStyle: TextStyle(color: scheme.onSurfaceVariant),
                                 hintStyle: TextStyle(color: scheme.onSurfaceVariant.withOpacity(0.6)),
                               ),
@@ -623,7 +623,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                   borderSide: BorderSide(color: scheme.primary, width: 2),
                                 ),
                                 filled: true,
-                                fillColor: scheme.surfaceVariant.withOpacity(isDark ? 0.3 : 0.7),
+                                fillColor: scheme.surfaceContainerHighest.withOpacity(isDark ? 0.3 : 0.7),
                                 labelStyle: TextStyle(color: scheme.onSurfaceVariant),
                                 hintStyle: TextStyle(color: scheme.onSurfaceVariant.withOpacity(0.6)),
                               ),

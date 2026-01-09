@@ -63,7 +63,7 @@ class DocumentProvider with ChangeNotifier {
       }
 
       return images;
-    } catch (e, st) {
+    } catch (e) {
       rethrow;
     }
   }
@@ -125,7 +125,7 @@ class DocumentProvider with ChangeNotifier {
       _cache[cacheKey] = document!;
 
       await _uploadToBackend();
-    } catch (e, st) {
+    } catch (e) {
       errorMessage = 'Extraction failed: $e';
       document = null;
     } finally {
@@ -172,7 +172,7 @@ class DocumentProvider with ChangeNotifier {
       _cache[cacheKey] = document!;
 
       await _uploadToBackend();
-    } catch (e, st) {
+    } catch (e) {
       errorMessage = 'Structured extraction failed: $e';
       document = null;
     } finally {
@@ -186,8 +186,8 @@ class DocumentProvider with ChangeNotifier {
     try {
       if (documentFile == null || extractedRawText.isEmpty) return;
 
-      final AuthService _authService = AuthService();
-      final token = await _authService.getAuthToken();
+      final AuthService authService = AuthService();
+      final token = await authService.getAuthToken();
       final response = await DocumentApiService.createDocument(
         imageFile: documentFile!,
         extractedText: extractedRawText,

@@ -124,7 +124,7 @@ class _SignUpPageState extends State<SignUpPage> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     filled: true,
-                    fillColor: scheme.surfaceVariant.withOpacity(0.4),
+                    fillColor: scheme.surfaceContainerHighest.withOpacity(0.4),
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
@@ -146,7 +146,7 @@ class _SignUpPageState extends State<SignUpPage> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     filled: true,
-                    fillColor: scheme.surfaceVariant.withOpacity(0.4),
+                    fillColor: scheme.surfaceContainerHighest.withOpacity(0.4),
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
@@ -180,7 +180,7 @@ class _SignUpPageState extends State<SignUpPage> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     filled: true,
-                    fillColor: scheme.surfaceVariant.withOpacity(0.4),
+                    fillColor: scheme.surfaceContainerHighest.withOpacity(0.4),
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {

@@ -1,4 +1,3 @@
-import 'dart:convert';
 import '../services/quiz_api_service.dart';
 import '../services/auth_service.dart';
 
@@ -24,11 +23,29 @@ class SavedQuiz {
     // Parse questions to get count
     final questions = json['questions'] as List<dynamic>? ?? [];
     
+    // Debug: Print ALL date-related fields
+    print('🔍 Raw JSON for quiz "${json['name']}":');
+    print('   created_at: ${json['created_at']}');
+    print('   date_created: ${json['date_created']}');
+    print('   createdAt: ${json['createdAt']}');
+    print('   dateCreated: ${json['dateCreated']}');
+    
+    // Try to get the date from any possible field
+    final dateString = json['created_at'] as String? ?? 
+                      json['date_created'] as String? ?? 
+                      json['createdAt'] as String? ?? 
+                      json['dateCreated'] as String?;
+    
+    print('   📅 Using dateString: $dateString');
+    
+    final parsedDate = _parseDate(dateString);
+    print('   ⏰ Parsed to: $parsedDate');
+    
     return SavedQuiz(
       id: json['quiz_id']?.toString() ?? '',
       name: json['name'] as String? ?? 'Untitled Quiz',
       documentId: json['document_id']?.toString() ?? '',
-      dateCreated: _parseDate(json['created_at'] as String?),
+      dateCreated: parsedDate,
       questionCount: questions.length,
       documentName: json['document_name'] as String?,
     );
@@ -36,11 +53,15 @@ class SavedQuiz {
 
   static DateTime _parseDate(String? dateString) {
     if (dateString == null || dateString.isEmpty) {
+      print('   ⚠️ dateString is null or empty, using DateTime.now()');
       return DateTime.now();
     }
     try {
-      return DateTime.parse(dateString);
+      final parsed = DateTime.parse(dateString);
+      print('   ✅ Successfully parsed date: $parsed');
+      return parsed;
     } catch (e) {
+      print('   ❌ Failed to parse date: $e');
       return DateTime.now();
     }
   }

@@ -186,7 +186,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ],
           ),
 
-          _SettingsSection(
+          const _SettingsSection(
             title: 'About',
             children: [
               _SettingsTile(
@@ -340,7 +340,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         ),
                       ],
                     ),
-                    _SettingsSection(
+                    const _SettingsSection(
                       title: 'About',
                       children: [
                         _SettingsTile(

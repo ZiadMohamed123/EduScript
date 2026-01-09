@@ -348,7 +348,7 @@ class _SummaryPageState extends State<SummaryPage> {
         });
         _scrollToBottom();
       }
-    } catch (e, stackTrace) {
+    } catch (e) {
       if (mounted) {
        
 
@@ -514,7 +514,7 @@ class _SummaryPageState extends State<SummaryPage> {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 16, vertical: 8),
                             decoration: BoxDecoration(
-                              color: scheme.surfaceVariant
+                              color: scheme.surfaceContainerHighest
                                   .withOpacity(isDark ? 0.3 : 0.8),
                               border: Border(
                                 bottom:
@@ -602,7 +602,7 @@ class _SummaryPageState extends State<SummaryPage> {
                                       ),
                                       filled: true,
                                       fillColor:
-                                          scheme.surfaceVariant.withOpacity(
+                                          scheme.surfaceContainerHighest.withOpacity(
                                         isDark ? 0.3 : 0.7,
                                       ),
                                       contentPadding:
@@ -892,7 +892,7 @@ class _SummaryPageState extends State<SummaryPage> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: scheme.surfaceVariant,
+              color: scheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(20),
             ),
             child: Row(
@@ -965,7 +965,7 @@ class _ChatBubble extends StatelessWidget {
               decoration: BoxDecoration(
                 color: message.isUser
                     ? scheme.primary
-                    : scheme.surfaceVariant.withOpacity(
+                    : scheme.surfaceContainerHighest.withOpacity(
                         scheme.brightness == Brightness.dark ? 0.3 : 0.8,
                       ),
                 borderRadius: BorderRadius.circular(16).copyWith(
@@ -1007,7 +1007,7 @@ class _ChatBubble extends StatelessWidget {
             const SizedBox(width: 8),
             CircleAvatar(
               radius: 16,
-              backgroundColor: scheme.surfaceVariant,
+              backgroundColor: scheme.surfaceContainerHighest,
               child: Icon(
                 Icons.person,
                 size: 18,
