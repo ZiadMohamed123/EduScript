@@ -8,8 +8,7 @@ export class Answer {
       .eq("answer_id", answerID)
       .single();
 
-    if (error) throw error;
-    return data;
+    return error? null : data;
   }
 
   static async findByQuestionId(questionID) {
@@ -27,12 +26,8 @@ export class Answer {
       question_id: questionID,
       text: answerData.text,
       is_correct: answerData.isCorrect || false,
+      user_selected: answerData.userSelected || false
     };
-
-    // Add user_selected if provided
-    if (answerData.userSelected !== undefined) {
-      insertData.user_selected = answerData.userSelected;
-    }
 
     const { data, error } = await supabase
       .from("Answer")

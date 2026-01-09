@@ -316,7 +316,6 @@ summary: "Document summary..."      // ❌ Optional (string)
     "extracted_text": "Full document...",
     "summary": "Document summary...",
     "created_at": "2024-01-15T10:30:00Z",
-    "updated_at": "2024-01-15T10:30:00Z"
   }
 }
 ```
@@ -355,7 +354,6 @@ summary: "Document summary..."      // ❌ Optional (string)
       "extracted_text": "Full document...",
       "summary": "Document summary...",
       "created_at": "2024-01-15T10:30:00Z",
-      "updated_at": "2024-01-15T10:30:00Z"
     }
   ],
   "count": 1
@@ -434,7 +432,6 @@ newDocument: <file>                 // ❌ Optional (file)
     "extracted_text": "Updated text...",
     "summary": "Updated summary...",
     "created_at": "2024-01-15T10:30:00Z",
-    "updated_at": "2024-01-15T11:45:00Z"
   }
 }
 ```
@@ -526,30 +523,28 @@ documentID: "660e8400-e29b-41d4-a716-446655440001"  // ✅ Required (UUID string
     "document_id": "660e8400-e29b-41d4-a716-446655440001",
     "name": "Quiz Title",
     "created_at": "2024-01-15T10:30:00Z",
-    "updated_at": "2024-01-15T10:30:00Z",
     "questions": [
       {
         "question_id": "880e8400-e29b-41d4-a716-446655440003",
         "quiz_id": "770e8400-e29b-41d4-a716-446655440002",
         "text": "What is 2 + 2?",
         "created_at": "2024-01-15T10:30:00Z",
-        "updated_at": "2024-01-15T10:30:00Z",
         "answers": [
           {
             "answer_id": "990e8400-e29b-41d4-a716-446655440004",
             "question_id": "880e8400-e29b-41d4-a716-446655440003",
             "text": "4",
             "is_correct": true,
-            "created_at": "2024-01-15T10:30:00Z",
-            "updated_at": "2024-01-15T10:30:00Z"
+            "user_selected": false,
+            "created_at": "2024-01-15T10:30:00Z"
           },
           {
             "answer_id": "aa0e8400-e29b-41d4-a716-446655440005",
             "question_id": "880e8400-e29b-41d4-a716-446655440003",
             "text": "5",
             "is_correct": false,
-            "created_at": "2024-01-15T10:30:00Z",
-            "updated_at": "2024-01-15T10:30:00Z"
+            "user_selected": false,
+            "created_at": "2024-01-15T10:30:00Z"
           }
         ]
       }
@@ -565,8 +560,69 @@ documentID: "660e8400-e29b-41d4-a716-446655440001"  // ✅ Required (UUID string
 
 ---
 
-### 15. Get Quiz
-**Endpoint:** `GET /quiz/:documentID`
+### 15. Get All Quizzes by User
+**Endpoint:** `GET /quiz/all`
+
+**Description:** Retrieve all quizzes belonging to the authenticated user across all documents.
+
+**Request Headers:**
+```json
+{
+  "Authorization": "Bearer <JWT_TOKEN>"
+}
+```
+
+**Request Body:** None
+
+**Response (200 OK):**
+```json
+{
+  "quizzes": [
+    {
+      "quiz_id": "770e8400-e29b-41d4-a716-446655440002",
+      "document_id": "660e8400-e29b-41d4-a716-446655440001",
+      "name": "Quiz Title",
+      "created_at": "2024-01-15T10:30:00Z",
+      "questions": [
+        {
+          "question_id": "880e8400-e29b-41d4-a716-446655440003",
+          "quiz_id": "770e8400-e29b-41d4-a716-446655440002",
+          "text": "What is 2 + 2?",
+          "created_at": "2024-01-15T10:30:00Z",
+          "userAnswer": "4",
+          "answers": [
+            {
+              "answer_id": "990e8400-e29b-41d4-a716-446655440004",
+              "question_id": "880e8400-e29b-41d4-a716-446655440003",
+              "text": "4",
+              "is_correct": true,
+              "user_selected": true,
+              "created_at": "2024-01-15T10:30:00Z"
+            },
+            {
+              "answer_id": "aa0e8400-e29b-41d4-a716-446655440005",
+              "question_id": "880e8400-e29b-41d4-a716-446655440003",
+              "text": "5",
+              "is_correct": false,
+              "user_selected": false,
+              "created_at": "2024-01-15T10:30:00Z"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "count": 1
+}
+```
+
+**Error Responses:**
+- **401 Unauthorized:** Missing or invalid JWT token
+
+---
+
+### 16. Get Quizzes by Document
+**Endpoint:** `GET /quiz/document/:documentID`
 
 **Description:** Retrieve all quizzes for a specific document.
 
@@ -593,22 +649,20 @@ documentID: "660e8400-e29b-41d4-a716-446655440001"  // ✅ Required (UUID string
       "document_id": "660e8400-e29b-41d4-a716-446655440001",
       "name": "Quiz Title",
       "created_at": "2024-01-15T10:30:00Z",
-      "updated_at": "2024-01-15T10:30:00Z",
       "questions": [
         {
           "question_id": "880e8400-e29b-41d4-a716-446655440003",
           "quiz_id": "770e8400-e29b-41d4-a716-446655440002",
           "text": "What is 2 + 2?",
           "created_at": "2024-01-15T10:30:00Z",
-          "updated_at": "2024-01-15T10:30:00Z",
           "answers": [
             {
               "answer_id": "990e8400-e29b-41d4-a716-446655440004",
               "question_id": "880e8400-e29b-41d4-a716-446655440003",
               "text": "4",
               "is_correct": true,
-              "created_at": "2024-01-15T10:30:00Z",
-              "updated_at": "2024-01-15T10:30:00Z"
+              "user_selected": false,
+              "created_at": "2024-01-15T10:30:00Z"
             }
           ]
         }
@@ -625,8 +679,73 @@ documentID: "660e8400-e29b-41d4-a716-446655440001"  // ✅ Required (UUID string
 
 ---
 
-### 16. Update Quiz
-**Endpoint:** `PUT /quiz/update/:quizID`
+### 17. Get Specific Quiz
+**Endpoint:** `GET /quiz/:quizID`
+
+**Description:** Retrieve a specific quiz by ID with all its questions and answers including user responses.
+
+**Request Headers:**
+```json
+{
+  "Authorization": "Bearer <JWT_TOKEN>"
+}
+```
+
+**URL Parameters:**
+```
+quizID: "770e8400-e29b-41d4-a716-446655440002"  // ✅ Required (UUID string)
+```
+
+**Request Body:** None
+
+**Response (200 OK):**
+```json
+{
+  "quiz": {
+    "quiz_id": "770e8400-e29b-41d4-a716-446655440002",
+    "document_id": "660e8400-e29b-41d4-a716-446655440001",
+    "name": "Quiz Title",
+    "created_at": "2024-01-15T10:30:00Z",
+    "questions": [
+      {
+        "question_id": "880e8400-e29b-41d4-a716-446655440003",
+        "quiz_id": "770e8400-e29b-41d4-a716-446655440002",
+        "text": "What is 2 + 2?",
+        "created_at": "2024-01-15T10:30:00Z",
+        "userAnswer": "4",
+        "answers": [
+          {
+            "answer_id": "990e8400-e29b-41d4-a716-446655440004",
+            "question_id": "880e8400-e29b-41d4-a716-446655440003",
+            "text": "4",
+            "is_correct": true,
+            "user_selected": true,
+            "created_at": "2024-01-15T10:30:00Z"
+          },
+          {
+            "answer_id": "aa0e8400-e29b-41d4-a716-446655440005",
+            "question_id": "880e8400-e29b-41d4-a716-446655440003",
+            "text": "5",
+            "is_correct": false,
+            "user_selected": false,
+            "created_at": "2024-01-15T10:30:00Z"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**Error Responses:**
+- **401 Unauthorized:** Missing or invalid JWT token
+- **403 Forbidden:** Document not found or access denied
+- **404 Not Found:** Quiz not found
+
+---
+
+### 18. Update Quiz
+**Endpoint:** `PUT /quiz/:quizID`
 
 **Description:** Update quiz name and/or questions and answers.
 
@@ -679,22 +798,20 @@ quizID: "770e8400-e29b-41d4-a716-446655440002"      // ✅ Required (UUID string
     "document_id": "660e8400-e29b-41d4-a716-446655440001",
     "name": "Updated Quiz Title",
     "created_at": "2024-01-15T10:30:00Z",
-    "updated_at": "2024-01-15T11:45:00Z",
     "questions": [
       {
         "question_id": "880e8400-e29b-41d4-a716-446655440003",
         "quiz_id": "770e8400-e29b-41d4-a716-446655440002",
         "text": "Updated question?",
         "created_at": "2024-01-15T10:30:00Z",
-        "updated_at": "2024-01-15T11:45:00Z",
         "answers": [
           {
             "answer_id": "990e8400-e29b-41d4-a716-446655440004",
             "question_id": "880e8400-e29b-41d4-a716-446655440003",
             "text": "Updated answer",
             "is_correct": true,
-            "created_at": "2024-01-15T10:30:00Z",
-            "updated_at": "2024-01-15T11:45:00Z"
+            "user_selected": false,
+            "created_at": "2024-01-15T10:30:00Z"
           }
         ]
       }
@@ -711,8 +828,8 @@ quizID: "770e8400-e29b-41d4-a716-446655440002"      // ✅ Required (UUID string
 
 ---
 
-### 17. Delete Quiz
-**Endpoint:** `DELETE /quiz/delete/:quizID`
+### 19. Delete Quiz
+**Endpoint:** `DELETE /quiz/:quizID`
 
 **Description:** Delete a quiz and all associated questions and answers.
 
@@ -807,11 +924,13 @@ quizID: "770e8400-e29b-41d4-a716-446655440002"      // ✅ Required (UUID string
 | `/document/edit/:documentID` | PUT | Yes | Form Data | Update document |
 | `/document/delete/:documentID` | DELETE | Yes | None | Delete document |
 | `/quiz/add` | POST | Yes | JSON | Create quiz |
-| `/quiz/:documentID` | GET | Yes | None | Get quizzes |
-| `/quiz/update/:quizID` | PUT | Yes | JSON | Update quiz |
-| `/quiz/delete/:quizID` | DELETE | Yes | None | Delete quiz |
+| `/quiz/all` | GET | Yes | None | Get all user quizzes |
+| `/quiz/document/:documentID` | GET | Yes | None | Get quizzes by document |
+| `/quiz/:quizID` | GET | Yes | None | Get specific quiz |
+| `/quiz/:quizID` | PUT | Yes | JSON | Update quiz |
+| `/quiz/:quizID` | DELETE | Yes | None | Delete quiz |
 
 ---
 
-**Last Updated:** January 15, 2024  
+**Last Updated:** January 9, 2026  
 **API Version:** 1.0
