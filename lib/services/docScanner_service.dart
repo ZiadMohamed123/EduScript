@@ -10,15 +10,14 @@ class DocumentScannerService {
     ),
   );
 
-  Future<String?> scanPaper() async {
+  Future<List<String>?> scanPaper() async {
     try {
       final DocumentScanningResult result =
           await documentScanner.scanDocument();
 
-      if (result.images.isNotEmpty) {
-        final String firstImagePath = result.images.first;
-        print('succesfully scanned img path: $firstImagePath');
-        return firstImagePath;
+      if (result != null && result.images.isNotEmpty) {
+        print('Scanned pages: ${result.images.length}');
+        return result.images;
       }
       return null;
     } catch (e) {
