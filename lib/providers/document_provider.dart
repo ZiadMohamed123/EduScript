@@ -184,7 +184,7 @@ class DocumentProvider with ChangeNotifier {
       notifyListeners();
       return;
     }
-
+    try {
       final AuthService authService = AuthService();
       final token = await authService.getAuthToken();
       final response = await DocumentApiService.createDocument(
