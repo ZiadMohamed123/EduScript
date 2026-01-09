@@ -68,5 +68,5 @@ app.*.map.json
 .env.*.local
 # Node Modules
 /backend/node_modules
-/backend/.env
+/backend/.env.*
 /backend/uploads/
