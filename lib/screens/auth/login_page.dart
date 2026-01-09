@@ -121,7 +121,7 @@ class _LoginPageState extends State<LoginPage> {
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     filled: true,
-                                    fillColor: scheme.surfaceVariant.withOpacity(0.4),
+                                    fillColor: scheme.surfaceContainerHighest.withOpacity(0.4),
                                   ),
                                   validator: (value) {
                                     if (value == null || value.trim().isEmpty) {
@@ -154,7 +154,7 @@ class _LoginPageState extends State<LoginPage> {
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     filled: true,
-                                    fillColor: scheme.surfaceVariant.withOpacity(0.4),
+                                    fillColor: scheme.surfaceContainerHighest.withOpacity(0.4),
                                   ),
                                   validator: (value) {
                                     if (value == null || value.isEmpty) {
@@ -366,7 +366,7 @@ class _LoginPageState extends State<LoginPage> {
       prefixIcon: Icon(icon),
       suffixIcon: suffix,
       filled: true,
-      fillColor: scheme.surfaceVariant.withOpacity(0.4),
+      fillColor: scheme.surfaceContainerHighest.withOpacity(0.4),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
     );
   }

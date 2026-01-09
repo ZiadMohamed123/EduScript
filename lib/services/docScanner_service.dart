@@ -12,7 +12,7 @@ class DocumentScannerService {
 
   Future<List<String>?> scanPaper() async {
     try {
-      final DocumentScanningResult? result =
+      final DocumentScanningResult result =
           await documentScanner.scanDocument();
 
       if (result != null && result.images.isNotEmpty) {

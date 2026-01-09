@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS "Quiz" (
   quiz_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   document_id UUID NOT NULL REFERENCES "Document"(document_id) ON DELETE CASCADE,
   name VARCHAR(255) NOT NULL,
-  date_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Create Question table
@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS "Answer" (
   question_id UUID NOT NULL REFERENCES "Question"(question_id) ON DELETE CASCADE,
   text TEXT NOT NULL,
   is_correct BOOLEAN DEFAULT FALSE,
+  user_selected BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

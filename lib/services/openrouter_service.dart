@@ -115,7 +115,7 @@ class OpenRouterService {
     String? documentContent,
     String? context,
   }) async {
-    final systemPrompt =
+    const systemPrompt =
         '''You are an expert academic assistant specialized in creating clear, concise, and comprehensive summaries of educational documents. 
 Your goal is to help students understand and retain key information from their study materials.
 
@@ -130,7 +130,7 @@ Guidelines:
 - Return only the summary text, no meta-commentary or explanations''';
 
     final userPrompt = documentContent != null && documentContent.isNotEmpty
-        ? '''Please create a comprehensive, well-structured summary of the following document titled "${documentTitle}".
+        ? '''Please create a comprehensive, well-structured summary of the following document titled "$documentTitle".
 
 Document Content:
 $documentContent
@@ -146,7 +146,7 @@ Requirements:
 8. Ensure the summary is comprehensive enough to be useful for studying
 
 Format the summary with clear sections and proper structure. Return only the summary text.'''
-        : '''Please provide a summary for the document "${documentTitle}". 
+        : '''Please provide a summary for the document "$documentTitle". 
 ${context != null ? 'Context: $context' : 'Generate a general summary structure that would be helpful for studying this topic.'}''';
 
     return await chat(
@@ -166,7 +166,7 @@ ${context != null ? 'Context: $context' : 'Generate a general summary structure 
     String? documentTitle,
     String? documentContext,
   }) async {
-    final systemPrompt =
+    const systemPrompt =
         '''You are an AI study tutor and assistant. You help students understand concepts, 
 create summaries, generate study materials, and answer questions about their course content. 
 Be friendly, encouraging, and educational. Break down complex topics into understandable parts.''';

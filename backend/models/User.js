@@ -2,7 +2,7 @@ import { supabase } from "../config/supabase.js";
 import bcrypt from "bcryptjs";
 import fs from "fs";
 import path from "path";
-import { profilePicturesUploadDir, __dirname } from "../config/multer.js";
+import { profilePicturesUploadDir } from "../config/multer.js";
 
 export class User {
   static async doesUserExist(email) {

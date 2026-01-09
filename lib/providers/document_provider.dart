@@ -185,8 +185,8 @@ class DocumentProvider with ChangeNotifier {
       return;
     }
 
-    try {
-      final token = await AuthService().getAuthToken();
+      final AuthService authService = AuthService();
+      final token = await authService.getAuthToken();
       final response = await DocumentApiService.createDocument(
         imageFile: documentFile!,
         extractedText: extractedRawText,

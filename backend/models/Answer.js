@@ -8,8 +8,7 @@ export class Answer {
       .eq("answer_id", answerID)
       .single();
 
-    if (error) throw error;
-    return data;
+    return error? null : data;
   }
 
   static async findByQuestionId(questionID) {
@@ -23,13 +22,16 @@ export class Answer {
   }
 
   static async create(questionID, answerData) {
+    const insertData = {
+      question_id: questionID,
+      text: answerData.text,
+      is_correct: answerData.isCorrect || false,
+      user_selected: answerData.userSelected || false
+    };
+
     const { data, error } = await supabase
       .from("Answer")
-      .insert({
-        question_id: questionID,
-        text: answerData.text,
-        is_correct: answerData.isCorrect || false,
-      })
+      .insert(insertData)
       .select()
       .single();
 
@@ -41,6 +43,7 @@ export class Answer {
     const updatePayload = {};
     if (updateData.text !== undefined) updatePayload.text = updateData.text;
     if (updateData.isCorrect !== undefined) updatePayload.is_correct = updateData.isCorrect;
+    if (updateData.userSelected !== undefined) updatePayload.user_selected = updateData.userSelected;
 
     const { data, error } = await supabase
       .from("Answer")

@@ -17,6 +17,11 @@ class QuizApiService {
       return '';
     }
   }
+
+  /// Base URL of your Node backend.
+  /// 
+  /// If BACKEND_BASE_URL is set in .env, it will be used.
+  /// Otherwise, automatically detects the platform:
   /// - Android Emulator: http://10.0.2.2:5000
   /// - Chrome/Web: http://localhost:5000
   /// - iOS Simulator: http://localhost:5000
@@ -74,7 +79,55 @@ class QuizApiService {
     }
   }
 
-  Future<List<Question>> generateQuiz(String notes) async {
+  /// Build a dynamic prompt based on user's question type selection
+  /// Build a MORE CONCISE dynamic prompt to avoid truncation
+  String _buildDynamicPrompt({
+    required String notes,
+    required int totalQuestions,
+    required int mcqCount,
+    required int trueFalseCount,
+    required int essayCount,
+    required int shortAnswerCount,
+  }) {
+    // Build concise type breakdown
+    final List<String> types = [];
+    if (mcqCount > 0) types.add('$mcqCount MCQ');
+    if (trueFalseCount > 0) types.add('$trueFalseCount T/F');
+    if (shortAnswerCount > 0) types.add('$shortAnswerCount Short');
+    if (essayCount > 0) types.add('$essayCount Essay');
+    
+    final distribution = types.join(', ');
+
+    return '''Generate $totalQuestions questions ($distribution) from these notes as a JSON array.
+
+JSON format:
+[
+  {"id": 1, "type": "mcq", "text": "question?", "options": ["A", "B", "C", "D"]},
+  {"id": 2, "type": "trueFalse", "text": "statement", "options": []},
+  ...
+]
+
+Rules:
+- MCQ: 4 options, type="mcq"
+- True/False: no options, type="trueFalse"  
+- Short Answer: no options, type="shortAnswer"
+- Essay: no options, type="essay"
+- Return ONLY the JSON array, no markdown, no explanation
+
+Notes:
+$notes
+
+JSON array:''';
+  }
+
+  Future<List<Question>> generateQuiz(
+    String notes, {
+    int? totalQuestions,
+    int? mcqCount,
+    int? trueFalseCount,
+    int? essayCount,
+    int? shortAnswerCount,
+  }) async {
     // Validate API key before making request
     final key = apiKey;
     if (key.isEmpty) {
@@ -90,28 +143,28 @@ class QuizApiService {
       );
     }
 
+    // Use defaults if not provided
+    final total = totalQuestions ?? 5;
+    final mcq = mcqCount ?? 3;
+    final trueFalse = trueFalseCount ?? 1;
+    final essay = essayCount ?? 1;
+    final shortAnswer = shortAnswerCount ?? 0;
+
+    // Build dynamic prompt based on user selection
+    final prompt = _buildDynamicPrompt(
+      notes: notes,
+      totalQuestions: total,
+      mcqCount: mcq,
+      trueFalseCount: trueFalse,
+      essayCount: essay,
+      shortAnswerCount: shortAnswer,
+    );
+
     // Use Google Gemini API endpoint
     final model = _getEnv('GEMINI_MODEL').isEmpty ? 'gemini-2.5-flash' : _getEnv('GEMINI_MODEL');
     final url = Uri.parse(
       "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$key"
     );
-
-    final prompt = '''Generate exactly 5 questions from the following notes in **valid JSON array**.
-
-Each question item must include:
-{
-  "id": number,
-  "type": "mcq" | "trueFalse" | "essay" | "shortAnswer",
-  "text": string,
-  "options": [] or ["A", "B", ...]
-}
-
-If type is essay or shortAnswer → options must be [].
-
-Notes:
-$notes
-
-Return ONLY the JSON array, no other text. Do not include markdown code blocks or any explanation.''';
 
     final headers = <String, String>{
       "Content-Type": "application/json",
@@ -134,7 +187,7 @@ Return ONLY the JSON array, no other text. Do not include markdown code blocks o
           "temperature": 0.7,
           "topK": 40,
           "topP": 0.95,
-          "maxOutputTokens": 2048,
+          "maxOutputTokens": 8192,
         },
       }),
     );
@@ -196,9 +249,11 @@ Return ONLY the JSON array, no other text. Do not include markdown code blocks o
     if (content == null || content.isEmpty) {
       throw Exception("No content in API response.");
     }
-
+    
     // Extract JSON from the response (might have markdown code blocks)
     String jsonContent = content.trim();
+    
+    // Remove markdown code blocks
     if (jsonContent.startsWith('```json')) {
       jsonContent = jsonContent.substring(7);
     }
@@ -210,8 +265,59 @@ Return ONLY the JSON array, no other text. Do not include markdown code blocks o
     }
     jsonContent = jsonContent.trim();
 
-    // Try to parse as JSON object first (in case it's wrapped in an object)
-    dynamic parsedData = jsonDecode(jsonContent);
+    // Debug: Print what we're trying to parse
+    print('🔍 Raw content length: ${content.length}');
+    print('🔍 Cleaned JSON length: ${jsonContent.length}');
+    print('🔍 First 200 chars: ${jsonContent.length > 200 ? jsonContent.substring(0, 200) : jsonContent}...');
+
+    // Check if content is empty
+    if (jsonContent.isEmpty) {
+      throw Exception(
+        "Gemini returned empty response. This might be due to:\n"
+        "1. Content safety filters\n"
+        "2. The notes being too short or unclear\n"
+        "3. API quota exceeded\n\n"
+        "Try with different notes or check your API usage."
+      );
+    }
+
+    // Try to parse as JSON
+    dynamic parsedData;
+    try {
+      parsedData = jsonDecode(jsonContent);
+    } catch (e) {
+      // If JSON parsing fails, try to extract JSON array from text
+      print('❌ JSON parse error: $e');
+      print('🔍 Attempting to extract JSON array from text...');
+      
+      // Try to find JSON array in the text
+      final jsonArrayMatch = RegExp(r'\[\s*\{.*\}\s*\]', dotAll: true).firstMatch(jsonContent);
+      if (jsonArrayMatch != null) {
+        try {
+          jsonContent = jsonArrayMatch.group(0)!;
+          parsedData = jsonDecode(jsonContent);
+          print('✅ Successfully extracted JSON array!');
+        } catch (e2) {
+          throw Exception(
+            "Failed to parse Gemini response as JSON.\n\n"
+            "Raw response:\n${jsonContent.length > 500 ? '${jsonContent.substring(0, 500)}...' : jsonContent}\n\n"
+            "Error: $e2"
+          );
+        }
+      } else {
+        throw Exception(
+          "Gemini did not return valid JSON.\n\n"
+          "Raw response:\n${jsonContent.length > 500 ? '${jsonContent.substring(0, 500)}...' : jsonContent}\n\n"
+          "Error: $e\n\n"
+          "Try:\n"
+          "1. Use simpler notes\n"
+          "2. Reduce the number of questions\n"
+          "3. Try again in a few minutes"
+        );
+      }
+    }
+
+    // Parse the JSON into questions
     List<dynamic> parsedJson;
     
     if (parsedData is Map && parsedData.containsKey('questions')) {
@@ -222,19 +328,57 @@ Return ONLY the JSON array, no other text. Do not include markdown code blocks o
       // If it's a single object, wrap it in a list
       parsedJson = [parsedData];
     } else {
-      throw Exception("Unexpected response format from API.");
+      throw Exception(
+        "Unexpected response format from Gemini API.\n"
+        "Expected: JSON array of questions\n"
+        "Got: ${parsedData.runtimeType}"
+      );
     }
 
-    return parsedJson.map((q) {
-      return Question(
-        id: q['id'],
-        type: QuestionType.values.firstWhere(
-          (t) => t.toString().split('.').last == q['type'],
-        ),
-        text: q['text'],
-        options: List<String>.from(q['options'] ?? []),
+    print('✅ Successfully parsed ${parsedJson.length} questions');
+
+    // Validate and convert to Question objects
+    final questions = <Question>[];
+    for (var i = 0; i < parsedJson.length; i++) {
+      try {
+        final q = parsedJson[i];
+        
+        // Validate required fields
+        if (q['id'] == null || q['type'] == null || q['text'] == null) {
+          print('⚠️ Skipping question $i: Missing required fields');
+          continue;
+        }
+
+        final question = Question(
+          id: q['id'] is int ? q['id'] : int.tryParse(q['id'].toString()) ?? i + 1,
+          type: QuestionType.values.firstWhere(
+            (t) => t.toString().split('.').last == q['type'],
+            orElse: () => QuestionType.mcq,
+          ),
+          text: q['text'],
+          options: List<String>.from(q['options'] ?? []),
+        );
+        
+        questions.add(question);
+      } catch (e) {
+        print('⚠️ Error parsing question $i: $e');
+        continue;
+      }
+    }
+
+    if (questions.isEmpty) {
+      throw Exception(
+        "No valid questions were generated.\n\n"
+        "The AI returned ${parsedJson.length} question(s) but none could be parsed.\n\n"
+        "Try:\n"
+        "1. Simplify your notes\n"
+        "2. Use fewer questions\n"
+        "3. Try different question types"
       );
-    }).toList();
+    }
+
+    print('✅ Successfully created ${questions.length} Question objects');
+    return questions;
   }
 
   /// Save a generated quiz to the backend (Supabase via Node API).
@@ -247,142 +391,106 @@ Return ONLY the JSON array, no other text. Do not include markdown code blocks o
   ///     { "text": "...", "answers": [ { "text": "...", "isCorrect": false } ] }
   ///   ]
   /// }
+  /// 
+  /// 
+  /// Save quiz attempt with results
+/// Save quiz attempt with results
+
+// ============================================
+// ADD THIS METHOD TO quiz_api_service.dart
+// Add it right before the closing brace of the class
+// ============================================
+
   Future<Map<String, dynamic>> saveQuizToDatabase({
-    required String documentId,
-    required String name,
-    required List<Question> questions,
-    String? authToken,
-  }) async {
-    final baseUrl = backendBaseUrl;
-    if (baseUrl.isEmpty) {
-      throw Exception(
-        'BACKEND_BASE_URL is not set in .env.\n'
-        'Add e.g. BACKEND_BASE_URL=http://localhost:5000 to your .env file.',
-      );
-    }
-
-    final token = authToken ?? backendAuthToken;
-    if (token == null || token.isEmpty) {
-      throw Exception(
-        'Missing JWT token for backend.\n'
-        'Either pass authToken to saveQuizToDatabase or set BACKEND_JWT in .env.\n\n'
-        'To get a token:\n'
-        '1. Start your backend: cd backend && npm start\n'
-        '2. POST to http://localhost:5000/auth/login with email/password\n'
-        '3. Copy the token from the response\n'
-        '4. Add BACKEND_JWT=your-token-here to .env',
-      );
-    }
-
-    final url = Uri.parse('$baseUrl/quiz/add');
-    
-    // Debug info (will be shown in error if connection fails)
-    final debugInfo = '''
-Attempting to connect to: $baseUrl
-Full URL: $url
-Platform: ${kIsWeb ? 'Web/Chrome' : Platform.isAndroid ? 'Android' : Platform.isIOS ? 'iOS' : 'Desktop'}
-''';
-
-    // Map Flutter Question model to backend Question/Answer shape
-    final questionsPayload = questions.map((q) {
-      List<Map<String, dynamic>>? answers;
-
-      if (q.type == QuestionType.mcq && q.options.isNotEmpty) {
-        answers = q.options
-            .map((opt) => {
-                  'text': opt,
-                  // We don't know the correct answer here, so default to false.
-                  'isCorrect': false,
-                })
-            .toList();
-      } else if (q.type == QuestionType.trueFalse) {
-        answers = [
-          {'text': 'True', 'isCorrect': false},
-          {'text': 'False', 'isCorrect': false},
-        ];
-      } else if (q.options.isNotEmpty) {
-        // For other types with options, just store them as non-correct answers.
-        answers = q.options
-            .map((opt) => {
-                  'text': opt,
-                  'isCorrect': false,
-                })
-            .toList();
-      }
-
-      final map = <String, dynamic>{
-        'text': q.text,
-      };
-      if (answers != null && answers.isNotEmpty) {
-        map['answers'] = answers;
-      }
-      return map;
-    }).toList();
-
-    final headers = <String, String>{
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $token',
-    };
-
-    try {
-      final response = await http.post(
-        url,
-        headers: headers,
-        body: jsonEncode({
-          'documentID': documentId,
-          'name': name,
-          'questions': questionsPayload,
-        }),
-      ).timeout(
-        const Duration(seconds: 10),
-        onTimeout: () {
-          throw Exception(
-            'Connection timeout. Is your backend server running?\n\n'
-            'Troubleshooting:\n'
-            '1. Make sure your backend is running: cd backend && npm start\n'
-            '2. Check BACKEND_BASE_URL in .env:\n'
-            '   - Android Emulator: http://10.0.2.2:5000\n'
-            '   - iOS Simulator: http://localhost:5000\n'
-            '   - Physical Device: http://YOUR_COMPUTER_IP:5000\n'
-            '3. Verify the backend is accessible at: $baseUrl'
-          );
-        },
-      );
-
-      if (response.statusCode != 201) {
-        throw Exception(
-          'Failed to save quiz (${response.statusCode}): ${response.body}',
-        );
-      }
-
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
-      return data;
-    } on http.ClientException catch (e) {
-      throw Exception(
-        'Network error: ${e.message}\n\n'
-        '$debugInfo'
-        'Troubleshooting:\n'
-        '1. Is your backend server running?\n'
-        '   → Open terminal: cd backend && npm start\n'
-        '   → You should see: "Server running on port: 5000"\n\n'
-        '2. Test the backend URL:\n'
-        '   → Open in browser: $baseUrl/auth/login\n'
-        '   → If it works, backend is running\n\n'
-        '3. Check BACKEND_BASE_URL in .env:\n'
-        '   - Android Emulator: http://10.0.2.2:5000\n'
-        '   - Chrome/Web: http://localhost:5000\n'
-        '   - iOS Simulator: http://localhost:5000\n'
-        '   - Physical Device: http://YOUR_COMPUTER_IP:5000\n\n'
-        '4. Current detected URL: $baseUrl\n\n'
-        '5. Make sure BACKEND_JWT is set in .env with a valid token'
-      );
-    } catch (e) {
-      if (e.toString().contains('timeout') || e.toString().contains('Connection')) {
-        rethrow;
-      }
-      throw Exception('Error saving quiz: $e');
-    }
+  required String documentId,
+  required String name,
+  required List<Question> questions,
+  required Map<String, dynamic> quizResults, // ← ADDED
+  String? authToken,
+}) async {
+  final baseUrl = backendBaseUrl;
+  if (baseUrl.isEmpty) {
+    throw Exception('BACKEND_BASE_URL is not set in .env');
   }
+
+  final token = authToken ?? backendAuthToken;
+  if (token == null || token.isEmpty) {
+    throw Exception('Missing JWT token');
+  }
+
+  final url = Uri.parse('$baseUrl/quiz/add');
+  
+  print('💾 Saving quiz with user answers');
+  
+  // Get feedback list
+  final feedbackList = quizResults['feedback'] as List<dynamic>? ?? [];
+  
+  // Build questions WITH user answers
+  final questionsPayload = questions.asMap().entries.map((entry) {
+    final index = entry.key;
+    final q = entry.value;
+    
+    // Find feedback
+    final feedback = feedbackList.firstWhere(
+      (f) => f['questionId'] == q.id,
+      orElse: () => {'correctAnswer': '', 'userAnswer': '', 'isCorrect': false, 'feedback': ''},
+    );
+    
+    final userAnswer = q.userAnswer ?? '';
+    final correctAnswer = feedback['correctAnswer'] as String? ?? '';
+    
+    List<Map<String, dynamic>>? answers;
+
+    if (q.type == QuestionType.mcq && q.options.isNotEmpty) {
+      answers = q.options.map((opt) {
+        return {
+          'text': opt,
+          'isCorrect': (opt == correctAnswer),
+          'userSelected': (opt == userAnswer), // ← Mark what user selected
+        };
+      }).toList();
+    } else if (q.type == QuestionType.trueFalse) {
+      answers = ['True', 'False'].map((opt) {
+        return {
+          'text': opt,
+          'isCorrect': (opt == correctAnswer),
+          'userSelected': (opt == userAnswer),
+        };
+      }).toList();
+    }
+
+    return {
+      'text': q.text,
+      if (answers != null) 'answers': answers,
+    };
+  }).toList();
+
+  try {
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'documentID': documentId,
+        'name': name,
+        'questions': questionsPayload,
+      }),
+    ).timeout(const Duration(seconds: 30));
+
+    if (response.statusCode != 201) {
+      throw Exception('Failed: ${response.statusCode}');
+    }
+
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    print('   ✅ Saved!');
+    return data;
+  } catch (e) {
+    print('   ❌ Error: $e');
+    rethrow;
+  }
+}
 
   /// Get all saved quizzes for the current user
   Future<List<Map<String, dynamic>>> getAllQuizzes(String authToken) async {
@@ -390,7 +498,7 @@ Platform: ${kIsWeb ? 'Web/Chrome' : Platform.isAndroid ? 'Android' : Platform.is
     if (baseUrl.isEmpty) {
       throw Exception(
         'BACKEND_BASE_URL is not set in .env.\n'
-        'Add e.g. BACKEND_BASE_URL=http://localhost:5000 to your .env file.',
+        'Add e.g. BACKEND_BASE_URL=http://192.168.1.18:5000 to your .env file.',
       );
     }
 
@@ -408,7 +516,7 @@ Platform: ${kIsWeb ? 'Web/Chrome' : Platform.isAndroid ? 'Android' : Platform.is
           'Authorization': 'Bearer $authToken',
         },
       ).timeout(
-        const Duration(seconds: 10),
+        const Duration(seconds: 30), // Increased timeout for slow connections
         onTimeout: () {
           throw Exception(
             'Connection timeout. Is your backend server running?\n\n'
@@ -458,7 +566,7 @@ Platform: ${kIsWeb ? 'Web/Chrome' : Platform.isAndroid ? 'Android' : Platform.is
           'Authorization': 'Bearer $authToken',
         },
       ).timeout(
-        const Duration(seconds: 10),
+        const Duration(seconds: 30),
         onTimeout: () {
           throw Exception(
             'Connection timeout. Is your backend server running?\n\n'
@@ -509,7 +617,7 @@ Platform: ${kIsWeb ? 'Web/Chrome' : Platform.isAndroid ? 'Android' : Platform.is
           'Authorization': 'Bearer $authToken',
         },
       ).timeout(
-        const Duration(seconds: 10),
+        const Duration(seconds: 30),
         onTimeout: () {
           throw Exception(
             'Connection timeout. Is your backend server running?\n\n'
@@ -615,7 +723,7 @@ Return ONLY the JSON object, no markdown code blocks or explanations.''';
           "temperature": 0.3,
           "topK": 40,
           "topP": 0.95,
-          "maxOutputTokens": 2048,
+          "maxOutputTokens": 8192,
         },
       }),
     );
@@ -695,7 +803,8 @@ Return ONLY the JSON object, no markdown code blocks or explanations.''';
       'feedback': result['feedback'] as List<dynamic>? ?? [],
     };
   }
-  /// NEW: Get quizzes by document ID
+
+  /// Get quizzes by document ID
   Future<List<Map<String, dynamic>>> getQuizzesByDocument(String documentId, String authToken) async {
     final baseUrl = backendBaseUrl;
     if (baseUrl.isEmpty) {
@@ -713,7 +822,6 @@ Return ONLY the JSON object, no markdown code blocks or explanations.''';
 
     print('🌐 Making request to: $url');
     print('🔑 Token (first 20 chars): ${authToken.substring(0, authToken.length > 20 ? 20 : authToken.length)}...');
-    print('📋 Headers: Authorization: Bearer $authToken');
 
     try {
       final response = await http.get(
@@ -723,7 +831,7 @@ Return ONLY the JSON object, no markdown code blocks or explanations.''';
           'Authorization': 'Bearer $authToken',
         },
       ).timeout(
-        const Duration(seconds: 10),
+        const Duration(seconds: 30),
         onTimeout: () {
           throw Exception(
             'Connection timeout. Is your backend server running?\n\n'
@@ -757,4 +865,6 @@ Return ONLY the JSON object, no markdown code blocks or explanations.''';
       throw Exception('Error fetching quizzes: $e');
     }
   }
+
+ 
 }

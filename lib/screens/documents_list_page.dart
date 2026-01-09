@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
 import '../services/document_service.dart';
 import 'quiz_generator_page.dart';
+import 'QuizCustomizationPage.dart';
+import 'SavedQuizzesListPage.dart';
 
 class Document {
   final String id;
@@ -178,7 +180,7 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
                     ),
                     filled: true,
                     fillColor:
-                        scheme.surfaceVariant.withOpacity(isDark ? 0.3 : 0.7),
+                        scheme.surfaceContainerHighest.withOpacity(isDark ? 0.3 : 0.7),
                   ),
                 ),
               );
@@ -329,44 +331,43 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.quiz),
-            title: const Text('Generate QUIZ'),
-            onTap: () async {
-              Navigator.pop(modalContext);
+  leading: const Icon(Icons.quiz),
+  title: const Text('Generate MCQ'),
+  onTap: () async {
+    Navigator.pop(modalContext);
 
-              try {
-                // Fetch the extracted text from the document
-                final extractedText =
-                    await _documentService.getExtractedText(document.id);
+    try {
+      // Fetch the extracted text from the document
+      final extractedText =
+          await _documentService.getExtractedText(document.id);
 
-                if (extractedText == null || extractedText.isEmpty) {
-                  if (mounted) {
-                    scaffoldMessenger.showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                            'No text found in document. Please make sure the document has been processed.'),
-                        backgroundColor: Colors.orange,
-                      ),
-                    );
-                  }
-                  return;
-                }
+      if (extractedText == null || extractedText.isEmpty) {
+        if (mounted) {
+          scaffoldMessenger.showSnackBar(
+            const SnackBar(
+              content: Text(
+                  'No text found in document. Please make sure the document has been processed.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
 
-                // Navigate to quiz generator with the extracted text
-                if (mounted) {
-                  Navigator.push(
-                    parentContext,
-                    MaterialPageRoute(
-                      builder: (_) => QuizGeneratorPage(
-                        documentId: document.id,
-                        documentTitle: document.title,
-                        extractedText: extractedText,
-                        autoGenerate: true,
-                      ),
-                    ),
-                  );
-                }
-              } catch (e) {
+      // Navigate to quiz CUSTOMIZATION page first
+      if (mounted) {
+        Navigator.push(
+          parentContext,
+          MaterialPageRoute(
+            builder: (_) => QuizCustomizationPage(
+              documentId: document.id,
+              documentTitle: document.title,
+              extractedText: extractedText,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
                 if (mounted) {
                   scaffoldMessenger.showSnackBar(
                     SnackBar(
@@ -382,10 +383,17 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
           ListTile(
             leading: const Icon(Icons.library_books),
             title: const Text('View Quizzes'),
-            onTap: () {
-              Navigator.pop(modalContext);
-              Navigator.pushNamed(parentContext, '/saved-quizzes');
-            },
+           onTap: () {
+  Navigator.pop(modalContext);
+  Navigator.push(
+    parentContext,
+    MaterialPageRoute(
+      builder: (_) => SavedQuizzesListPage(
+        documentId: document.id,
+      ),
+    ),
+  );
+},
           ),
           ListTile(
             leading: const Icon(Icons.delete, color: Colors.red),
@@ -477,7 +485,7 @@ class _DocumentCard extends StatelessWidget {
                   color: AppColors.accent.withOpacity(0.25),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(
+                child: const Icon(
                   Icons.description,
                   color: AppColors.primary,
                   size: 32,

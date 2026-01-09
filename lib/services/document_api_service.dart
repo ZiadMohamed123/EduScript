@@ -26,8 +26,8 @@ class DocumentApiService {
       await http.MultipartFile.fromPath(
         'document',
         imageFile.path,
-        filename: imageFile.path.split('/').last, // IMPORTANT
-        contentType: MediaType('application', 'pdf'), // 🔥 THE FIX
+        filename: imageFile.path.split('/').last, 
+        contentType: MediaType('application', 'pdf'), 
       ),
     );
 

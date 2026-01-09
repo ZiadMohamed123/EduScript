@@ -57,13 +57,13 @@ class HomePage extends StatelessWidget {
                                   ),
                                   borderRadius: BorderRadius.circular(16),
                                 ),
-                                child: Column(
+                                child: const Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Icon(Icons.document_scanner,
                                         size: 48, color: Colors.white),
-                                    const SizedBox(height: 16),
-                                    const Text(
+                                    SizedBox(height: 16),
+                                    Text(
                                       'Welcome Back!',
                                       style: TextStyle(
                                         fontSize: 24,
@@ -71,7 +71,7 @@ class HomePage extends StatelessWidget {
                                         color: Colors.white,
                                       ),
                                     ),
-                                    const SizedBox(height: 8),
+                                    SizedBox(height: 8),
                                     Text(
                                       'Scan documents and create study materials',
                                       style: TextStyle(
@@ -201,12 +201,12 @@ class HomePage extends StatelessWidget {
                             ),
                             borderRadius: BorderRadius.circular(16),
                           ),
-                          child: Column(
+                          child: const Column(
                             children: [
                               Icon(Icons.document_scanner,
                                   size: 64, color: Colors.white),
-                              const SizedBox(height: 16),
-                              const Text(
+                              SizedBox(height: 16),
+                              Text(
                                 'Welcome Back!',
                                 style: TextStyle(
                                   fontSize: 24,
@@ -214,7 +214,7 @@ class HomePage extends StatelessWidget {
                                   color: Colors.white,
                                 ),
                               ),
-                              const SizedBox(height: 8),
+                              SizedBox(height: 8),
                               Text(
                                 'Scan documents and create study materials',
                                 style: TextStyle(

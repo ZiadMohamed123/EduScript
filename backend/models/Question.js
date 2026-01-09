@@ -8,8 +8,7 @@ export class Question {
       .eq("question_id", question_id)
       .single();
 
-    if (error) throw error;
-    return data;
+    return error? null : data;
   }
 
   static async findByQuizId(quiz_id) {
