@@ -1,9 +1,16 @@
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
-
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../config/api_config.dart';
 class DocumentApiService {
-  static const String baseUrl = 'http://192.168.1.3:5000';
+  static String get baseUrl {
+    if (dotenv.isInitialized) {
+      return dotenv.env['BACKEND_URL'] ?? '';
+    } else {
+      return ApiConfig.backendBaseUrl;
+    }
+  }
 
   static Future<http.Response> createDocument({
     required File imageFile,
