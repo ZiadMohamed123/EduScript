@@ -70,7 +70,7 @@ class DocumentProvider with ChangeNotifier {
   }
 
   /// Simple OCR for PDF (page by page)
-  Future<void> extractSimple(String image) async {
+  Future<void> extractSimple(String image, String documentName) async {
     if (documentFile == null) {
       errorMessage = 'No PDF loaded';
       notifyListeners();
@@ -101,7 +101,8 @@ class DocumentProvider with ChangeNotifier {
           currentPage = i + 1;
           notifyListeners();
 
-          final text =await OpenRouterOcrService.extractTextFromImage(images[i]);
+          final text =
+              await OpenRouterOcrService.extractTextFromImage(images[i]);
           if (text.isNotEmpty) {
             buffer.writeln('--- Page ${i + 1} ---');
             buffer.writeln(text);
@@ -119,7 +120,7 @@ class DocumentProvider with ChangeNotifier {
       }
 
       extractedRawText = resultText;
-      await _uploadToBackend();
+      await _uploadToBackend(documentName);
     } catch (e, st) {
       errorMessage = 'Extraction failed: $e';
       document = null;
@@ -130,7 +131,7 @@ class DocumentProvider with ChangeNotifier {
     }
   }
 
-  Future<void> extractStructuredFromPdf() async {
+  Future<void> extractStructuredFromPdf(String documentName) async {
     if (documentFile == null) {
       errorMessage = 'No PDF loaded';
       notifyListeners();
@@ -175,7 +176,7 @@ class DocumentProvider with ChangeNotifier {
       }
 
       extractedRawText = fullText.toString().trim();
-      await _uploadToBackend();
+      await _uploadToBackend(documentName);
     } catch (e) {
       errorMessage = 'Structured PDF extraction failed: $e';
       document = null;
@@ -193,7 +194,7 @@ class DocumentProvider with ChangeNotifier {
   }
 
   /// Upload to backend AND save PDF locally
-  Future<void> _uploadToBackend() async {
+  Future<void> _uploadToBackend(String documentName) async {
     if (documentFile == null || extractedRawText.isEmpty) {
       errorMessage = 'Cannot upload: missing file or text';
       notifyListeners();
@@ -205,7 +206,7 @@ class DocumentProvider with ChangeNotifier {
       final response = await DocumentApiService.createDocument(
         imageFile: documentFile!,
         extractedText: extractedRawText,
-        name: _titleFromPdfPath(documentFile!),
+        name: documentName,
         noOfPages: totalPages > 0 ? totalPages : null,
         token: token ?? '',
       );
@@ -250,7 +251,6 @@ class DocumentProvider with ChangeNotifier {
       // Copy the PDF to local storage with documentId as filename
       final localPdfPath = '${pdfDir.path}/$documentId.pdf';
       await documentFile!.copy(localPdfPath);
-
     } catch (e) {
       // Don't fail the whole upload if local save fails
     }
@@ -273,7 +273,7 @@ class DocumentProvider with ChangeNotifier {
   }
 
   /// Default extraction method
-  Future<void> extract() => extractSimple("path");
+  Future<void> extract() => extractSimple("path", "Document");
 
   void clearCache() {
     _cache.clear();
@@ -296,6 +296,6 @@ extension on Response {
     final jsonResponse = jsonDecode(body);
     return jsonResponse[key];
   }
-  
+
   Map<String, dynamic> get json => jsonDecode(body);
 }
