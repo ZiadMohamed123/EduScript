@@ -348,14 +348,14 @@ class _QuizCustomizationPageState extends State<QuizCustomizationPage> {
                 ),
                 Expanded(
                   child: Slider(
-                    value: count.toDouble(),
+                    value: count.toDouble().clamp(0.0, maxAllowed > 0 ? maxAllowed.toDouble() : 1.0),
                     min: 0,
-                    max: maxAllowed.toDouble(),
+                    max: maxAllowed > 0 ? maxAllowed.toDouble() : 1.0,
                     divisions: maxAllowed > 0 ? maxAllowed : 1,
                     activeColor: color,
                     inactiveColor: color.withOpacity(0.3),
                     label: count.toString(),
-                    onChanged: (value) => onChanged(value.toInt()),
+                    onChanged: maxAllowed > 0 ? (value) => onChanged(value.toInt()) : null,
                   ),
                 ),
                 IconButton(
