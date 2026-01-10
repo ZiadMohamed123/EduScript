@@ -1,12 +1,12 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:quiz_generator/screens/QuizCustomizationPage.dart';
 import 'package:quiz_generator/screens/documents_list_page.dart';
 import '../services/docScanner_service.dart';
 import '../services/docCreate_service.dart';
 import '../providers/document_provider.dart';
 import 'package:provider/provider.dart';
-import 'quiz_generator_page.dart';
 import '../utils/app_theme.dart';
 
 class ScannerPage extends StatefulWidget {
@@ -83,7 +83,7 @@ class _ScannerPageState extends State<ScannerPage> {
 
       provider.documentFile = File(pdfPath);
       try {
-        await provider.extractStructuredFromPdf();
+        await provider.extractStructuredFromPdf(pdfName);
       } catch (extractionError) {
         if (mounted) {
           setState(() {
@@ -119,9 +119,13 @@ class _ScannerPageState extends State<ScannerPage> {
 
       setState(() {
         _isProcessing = false;
+        _status = 'ready to scan';
       });
 
       _showSuccessSheet(pdfName, provider, _scannedImages.length);
+      setState(() {
+        _scannedImages.clear();
+      });
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -254,11 +258,10 @@ class _ScannerPageState extends State<ScannerPage> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => QuizGeneratorPage(
+                          builder: (_) => QuizCustomizationPage(
                             documentId: provider.document!.documentId,
                             documentTitle: pdfName,
                             extractedText: provider.extractedRawText,
-                            autoGenerate: true,
                           ),
                         ),
                       );
@@ -509,7 +512,8 @@ class _ScannerPageState extends State<ScannerPage> {
               ),
               child: ElevatedButton(
                 onPressed: () {
-                  Navigator.pop(context, controller.text.trim());
+                  final finalText = controller.text.trim();
+                  Navigator.pop(context, finalText);
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.transparent,
