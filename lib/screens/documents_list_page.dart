@@ -3,6 +3,12 @@ import '../utils/app_theme.dart';
 import '../services/document_service.dart';
 import 'QuizCustomizationPage.dart';
 import 'SavedQuizzesListPage.dart';
+import '../providers/document_provider.dart';
+import 'package:flutter/services.dart';
+import 'dart:io';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:http/http.dart' as http;
 
 class Document {
   final String id;
@@ -135,6 +141,71 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
     }
   }
 
+  Future<void> _viewPdf(Document document) async {
+    try {
+
+      // Get the local PDF path using the document ID
+      final localPdfPath = await DocumentProvider.getLocalPdfPath(document.id);
+
+      if (localPdfPath == null || localPdfPath.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('PDF not available. Please re-scan the document.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      final file = File(localPdfPath);
+      final exists = await file.exists();
+
+      if (exists) {
+
+        // Use platform channel to open file with FileProvider
+        try {
+          await const MethodChannel('com.example.edu_script/files')
+              .invokeMethod('openFile', {
+            'filePath': localPdfPath,
+            'mimeType': 'application/pdf',
+          });
+        } catch (e) {
+
+          // Fallback: Try to use launchUrl with proper encoding
+          final Uri uri = Uri.parse('file://$localPdfPath');
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(
+              uri,
+              mode: LaunchMode.externalApplication,
+            );
+          } else {
+            throw 'Could not launch $uri';
+          }
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('PDF file not found on device'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to open PDF: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final filteredDocuments = _documents.where((doc) {
@@ -192,7 +263,7 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
             ),
             const SizedBox(width: 12),
             Text(
-              widget.showRecentsOnly ? 'Recent Documents' : 'My Documents',
+              widget.showRecentsOnly ? 'Recent' : 'My Documents',
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 24,
@@ -539,7 +610,6 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
   }
 
   void _showDocumentOptions(BuildContext context, Document document) {
-    // Capture parent context and ScaffoldMessenger before showing modal
     final parentContext = context;
     final scaffoldMessenger = ScaffoldMessenger.of(context);
 
@@ -568,6 +638,19 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
               ),
             ),
             const SizedBox(height: 20),
+            _buildActionTile(
+              modalContext,
+              icon: Icons.picture_as_pdf,
+              title: 'View PDF',
+              gradient: const LinearGradient(
+                colors: [AppColors.accent, AppColors.primaryDark],
+              ),
+              onTap: () {
+                Navigator.pop(modalContext);
+                _viewPdf(document);
+              },
+            ),
+            const Divider(height: 8),
             _buildActionTile(
               modalContext,
               icon: Icons.summarize,
@@ -910,7 +993,6 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
         final mutableList = List<Document>.from(_documents);
         if (!mutableList.any((doc) => doc.id == docToRestore.id)) {
           mutableList.add(docToRestore);
-          // Re-sort to maintain order
           mutableList.sort((a, b) {
             if (_sortBy == 'date') {
               return b.dateCreated.compareTo(a.dateCreated);
@@ -921,7 +1003,6 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
           _documents = mutableList;
         }
       });
-
       if (mounted) {
         // Show the restore snackbar immediately after hiding the delete one
         ScaffoldMessenger.of(context).showSnackBar(
@@ -995,11 +1076,10 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
   }
 
   Future<void> _confirmDelete(Document document) async {
-    // Only delete if it's still pending (wasn't undone) and not already deleting
+// Only delete if it's still pending (wasn't undone) and not already deleting
     if (_pendingDelete?.id != document.id || _isDeleting || !mounted) {
       return;
     }
-
     _isDeleting = true;
 
     try {
@@ -1099,19 +1179,16 @@ class _DocumentCard extends StatelessWidget {
   final Document document;
   final VoidCallback onTap;
   final VoidCallback onDelete;
-
   const _DocumentCard({
     required this.document,
     required this.onTap,
     required this.onDelete,
   });
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final gradient = _getDocumentGradient();
-
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -1259,7 +1336,7 @@ class _DocumentCard extends StatelessWidget {
                   ),
                 ),
 
-                // Actions
+                // Actions - Three dots icon
                 Container(
                   decoration: BoxDecoration(
                     color: isDark
@@ -1267,68 +1344,14 @@ class _DocumentCard extends StatelessWidget {
                         : AppColors.blue50,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: PopupMenuButton(
+                  child: IconButton(
                     icon: Icon(
                       Icons.more_vert,
                       color: AppColors.primary,
                       size: 22,
                     ),
-                    itemBuilder: (context) => [
-                      PopupMenuItem(
-                        value: 'view',
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [AppColors.primary, AppColors.cyan],
-                                ),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Icon(
-                                Icons.visibility,
-                                size: 16,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            const Text('View'),
-                          ],
-                        ),
-                      ),
-                      PopupMenuItem(
-                        value: 'delete',
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                color: Colors.red,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Icon(
-                                Icons.delete,
-                                size: 16,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            const Text(
-                              'Delete',
-                              style: TextStyle(color: Colors.red),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                    onSelected: (value) {
-                      if (value == 'view') {
-                        onTap();
-                      } else if (value == 'delete') {
-                        onDelete();
-                      }
-                    },
+                    onPressed: onTap,
+                    padding: const EdgeInsets.all(8),
                   ),
                 ),
               ],
@@ -1340,7 +1363,7 @@ class _DocumentCard extends StatelessWidget {
   }
 
   Gradient _getDocumentGradient() {
-    // Create different gradients for variety while maintaining cohesion
+// Create different gradients for variety while maintaining cohesion
     final gradients = [
       const LinearGradient(
         colors: [AppColors.primary, AppColors.cyan, AppColors.accent],
@@ -1358,7 +1381,7 @@ class _DocumentCard extends StatelessWidget {
         end: Alignment.bottomRight,
       ),
     ];
-    // Use document ID hash to consistently assign gradient
+// Use document ID hash to consistently assign gradient
     final index = document.id.hashCode % gradients.length;
     return gradients[index.abs()];
   }
@@ -1366,7 +1389,6 @@ class _DocumentCard extends StatelessWidget {
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final difference = now.difference(date);
-
     if (difference.inDays == 0) {
       return 'Today';
     } else if (difference.inDays == 1) {

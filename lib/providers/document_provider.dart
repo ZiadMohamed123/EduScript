@@ -21,41 +21,56 @@ class DocumentProvider with ChangeNotifier {
   int currentPage = 0;
   int totalPages = 0;
 
+  /// Convert PDF → images using pdfx (stable and maintained)
   Future<List<File>> _renderPdfToImages(File pdfFile) async {
-    final document = await PdfDocument.openFile(pdfFile.path);
-    final pageCount = document.pagesCount;
-    totalPages = pageCount;
+    try {
+      final document = await PdfDocument.openFile(pdfFile.path);
+      final pageCount = document.pagesCount;
+      totalPages = pageCount;
 
-    final dir = await getTemporaryDirectory();
-    final List<File> images = [];
+      final dir = await getTemporaryDirectory();
+      final List<File> images = [];
 
-    for (int i = 1; i <= pageCount; i++) {
-      currentPage = i;
-      notifyListeners();
+      for (int i = 1; i <= pageCount; i++) {
+        currentPage = i;
+        notifyListeners();
 
-      try {
-        final page = await document.getPage(i);
-        final pageImage =
-            await page.render(width: page.width * 2, height: page.height * 2);
-        if (pageImage != null) {
+        try {
+          final page = await document.getPage(i);
+
+          final pageImage = await page.render(
+            width: page.width * 2,
+            height: page.height * 2,
+          );
+
+          if (pageImage == null) {
+            continue;
+          }
+
           final imageFile = File('${dir.path}/pdf_page_$i.png');
           await imageFile.writeAsBytes(pageImage.bytes);
           images.add(imageFile);
+
+          await page.close();
+        } catch (e) {
+          continue;
         }
-        await page.close();
-      } catch (_) {
-        continue;
       }
+
+      await document.close();
+
+      if (images.isEmpty) {
+        throw Exception('No pages could be rendered from PDF');
+      }
+
+      return images;
+    } catch (e, st) {
+      rethrow;
     }
-
-    await document.close();
-
-    if (images.isEmpty) throw Exception('No pages could be rendered from PDF');
-
-    return images;
   }
 
-  Future<void> extractSimple(String image) async {
+  /// Simple OCR for PDF (page by page)
+  Future<void> extractSimple(String image, String documentName) async {
     if (documentFile == null) {
       errorMessage = 'No PDF loaded';
       notifyListeners();
@@ -82,10 +97,10 @@ class DocumentProvider with ChangeNotifier {
       final totalPages = images.length;
 
       for (int i = 0; i < totalPages; i++) {
-        currentPage = i + 1;
-        notifyListeners();
-
         try {
+          currentPage = i + 1;
+          notifyListeners();
+
           final text =
               await OpenRouterOcrService.extractTextFromImage(images[i]);
           if (text.isNotEmpty) {
@@ -93,19 +108,20 @@ class DocumentProvider with ChangeNotifier {
             buffer.writeln(text);
             buffer.writeln();
           }
-        } catch (_) {
+        } catch (e) {
           buffer.writeln('--- Page ${i + 1} (OCR failed) ---');
           buffer.writeln();
         }
       }
 
       final resultText = buffer.toString().trim();
-      if (resultText.isEmpty)
+      if (resultText.isEmpty) {
         throw Exception('OCR returned empty text for all pages');
+      }
 
       extractedRawText = resultText;
-      await _uploadToBackend();
-    } catch (e) {
+      await _uploadToBackend(documentName);
+    } catch (e, st) {
       errorMessage = 'Extraction failed: $e';
       document = null;
     } finally {
@@ -115,7 +131,7 @@ class DocumentProvider with ChangeNotifier {
     }
   }
 
-  Future<void> extractStructuredFromPdf() async {
+  Future<void> extractStructuredFromPdf(String documentName) async {
     if (documentFile == null) {
       errorMessage = 'No PDF loaded';
       notifyListeners();
@@ -160,7 +176,7 @@ class DocumentProvider with ChangeNotifier {
       }
 
       extractedRawText = fullText.toString().trim();
-      await _uploadToBackend();
+      await _uploadToBackend(documentName);
     } catch (e) {
       errorMessage = 'Structured PDF extraction failed: $e';
       document = null;
@@ -177,35 +193,38 @@ class DocumentProvider with ChangeNotifier {
     return name.replaceAll('_', ' ');
   }
 
-  /// Upload to backend
-  Future<void> _uploadToBackend() async {
+  /// Upload to backend AND save PDF locally
+  Future<void> _uploadToBackend(String documentName) async {
+    if (documentFile == null || extractedRawText.isEmpty) {
+      errorMessage = 'Cannot upload: missing file or text';
+      notifyListeners();
+      return;
+    }
     try {
-      if (documentFile == null || extractedRawText.isEmpty) {
-        errorMessage = 'Cannot upload: missing file or text';
-        notifyListeners();
-        return;
-      }
+      final token = await AuthService().getAuthToken();
 
-      final AuthService authService = AuthService();
-      final token = await authService.getAuthToken();
       final response = await DocumentApiService.createDocument(
         imageFile: documentFile!,
         extractedText: extractedRawText,
-        name: _titleFromPdfPath(documentFile!),
+        name: documentName,
         noOfPages: totalPages > 0 ? totalPages : null,
         token: token ?? '',
       );
 
-      final documentId = response.json['document']['document_id'];
+      // Parse response to get document ID
+      final jsonResponse = jsonDecode(response.body);
+      final documentId = jsonResponse['document']['document_id'];
+
       if (documentId == null || documentId.toString().isEmpty) {
         throw Exception('No document_id returned from server');
       }
+
+      await _savePdfLocally(documentId);
 
       document = ExtractedDocument.fromRawText(
         rawText: extractedRawText,
         documentId: documentId,
       );
-
       _cache[documentFile!.path] = document!;
       notifyListeners();
     } catch (e) {
@@ -216,8 +235,45 @@ class DocumentProvider with ChangeNotifier {
     }
   }
 
+  /// Save PDF file locally so it can be accessed later
+  Future<void> _savePdfLocally(String documentId) async {
+    try {
+      // Get app's CACHE directory instead of documents directory
+      // FileProvider can access cache easier
+      final directory = await getTemporaryDirectory();
+      final pdfDir = Directory('${directory.path}/pdfs');
+
+      // Create pdfs directory if it doesn't exist
+      if (!await pdfDir.exists()) {
+        await pdfDir.create(recursive: true);
+      }
+
+      // Copy the PDF to local storage with documentId as filename
+      final localPdfPath = '${pdfDir.path}/$documentId.pdf';
+      await documentFile!.copy(localPdfPath);
+    } catch (e) {
+      // Don't fail the whole upload if local save fails
+    }
+  }
+
+  /// Get the local path for a document's PDF
+  static Future<String?> getLocalPdfPath(String documentId) async {
+    try {
+      final directory = await getTemporaryDirectory();
+      final pdfPath = '${directory.path}/pdfs/$documentId.pdf';
+      final file = File(pdfPath);
+
+      if (await file.exists()) {
+        return pdfPath;
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
   /// Default extraction method
-  Future<void> extract() => extractSimple("path");
+  Future<void> extract() => extractSimple("path", "Document");
 
   void clearCache() {
     _cache.clear();
