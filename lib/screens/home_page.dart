@@ -171,7 +171,7 @@ class HomePage extends StatelessWidget {
                 const SizedBox(height: 24),
                 _MainActionButton(
                   icon: Icons.camera_alt,
-                  label: 'Scan New Document',
+                  label: 'Scan or Upload',
                   onPressed: () {
                     Navigator.pushNamed(context, '/scanner');
                   },
@@ -268,7 +268,7 @@ class HomePage extends StatelessWidget {
           const SizedBox(height: 24),
           _MainActionButton(
             icon: Icons.camera_alt,
-            label: 'Scan New Document',
+            label: 'Scan or Upload',
             onPressed: () {
               Navigator.pushNamed(context, '/scanner');
             },
