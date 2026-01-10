@@ -1,5 +1,5 @@
 import 'dart:io';
-
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:quiz_generator/screens/QuizCustomizationPage.dart';
 import 'package:quiz_generator/screens/documents_list_page.dart';
@@ -8,6 +8,7 @@ import '../services/docCreate_service.dart';
 import '../providers/document_provider.dart';
 import 'package:provider/provider.dart';
 import '../utils/app_theme.dart';
+import 'package:pdfx/pdfx.dart';
 
 class ScannerPage extends StatefulWidget {
   const ScannerPage({super.key});
@@ -126,6 +127,94 @@ class _ScannerPageState extends State<ScannerPage> {
       setState(() {
         _scannedImages.clear();
       });
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _uploadDocument() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf'],
+      );
+
+      if (result != null && result.files.isNotEmpty) {
+        final file = File(result.files.single.path!);
+        final defaultName = result.files.single.name.replaceAll('.pdf', '');
+        final documentName = await _askForPdfName(context, defaultName);
+
+        if (documentName == null || documentName.isEmpty) return;
+
+        // Get page count from PDF
+        int pageCount = 1; // default fallback
+        try {
+          final document = await PdfDocument.openFile(file.path);
+          pageCount = document.pagesCount;
+        } catch (e) {
+          print('Error reading PDF page count: $e');
+        }
+
+        setState(() {
+          _isProcessing = true;
+          _status = 'Processing document...';
+        });
+
+        final provider = Provider.of<DocumentProvider>(context, listen: false);
+        provider.documentFile = file;
+
+        try {
+          await provider.extractStructuredFromPdf(documentName);
+        } catch (extractionError) {
+          if (mounted) {
+            setState(() {
+              _isProcessing = false;
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Extraction failed: $extractionError'),
+                duration: const Duration(seconds: 5),
+              ),
+            );
+          }
+          return;
+        }
+
+        if (provider.document == null) {
+          if (mounted) {
+            setState(() {
+              _isProcessing = false;
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                    'Failed to extract document content. PDF may be invalid.'),
+                duration: Duration(seconds: 5),
+              ),
+            );
+          }
+          return;
+        }
+
+        if (!mounted) return;
+
+        setState(() {
+          _isProcessing = false;
+        });
+
+        _showSuccessSheet(
+            documentName, provider, pageCount); // Use actual page count
+      }
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -662,6 +751,8 @@ class _ScannerPageState extends State<ScannerPage> {
                           const SizedBox(height: 32),
                           _buildScanButton(isDark),
                           const SizedBox(height: 12),
+                          _buildUploadButton(isDark),
+                          const SizedBox(height: 12),
                           _buildFinishButton(_scannedImages.length, isDark),
                           if (_scannedImages.isNotEmpty && !_isProcessing)
                             Padding(
@@ -984,6 +1075,49 @@ class _ScannerPageState extends State<ScannerPage> {
         icon: const Icon(Icons.document_scanner, color: Colors.white),
         label: const Text(
           'Scan Page',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 17,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          padding: const EdgeInsets.symmetric(vertical: 18),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUploadButton(bool isDark) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: _isProcessing
+            ? null
+            : const LinearGradient(
+                colors: [AppColors.teal, AppColors.tealLight, AppColors.cyan],
+              ),
+        color: _isProcessing ? AppColors.textSecondary : null,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: _isProcessing
+            ? null
+            : [
+                BoxShadow(
+                  color: AppColors.teal.withOpacity(0.4),
+                  blurRadius: 15,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+      ),
+      child: ElevatedButton.icon(
+        onPressed: _isProcessing ? null : _uploadDocument,
+        icon: const Icon(Icons.upload_file, color: Colors.white),
+        label: const Text(
+          'Upload PDF',
           style: TextStyle(
             color: Colors.white,
             fontSize: 17,
