@@ -119,6 +119,39 @@ class OpenRouterService {
         '''You are an expert academic assistant specialized in creating clear, concise, and comprehensive summaries of educational documents. 
 Your goal is to help students understand and retain key information from their study materials.
 
+IMPORTANT: You must return the summary in a structured JSON format that clearly identifies different content types. This allows the app to properly format and display the summary.
+
+Return the summary as a JSON object with this exact structure:
+{
+  "sections": [
+    {
+      "type": "heading",
+      "text": "Main Title or Section Heading"
+    },
+    {
+      "type": "paragraph",
+      "text": "Paragraph content here..."
+    },
+    {
+      "type": "list",
+      "items": ["Item 1", "Item 2", "Item 3"]
+    },
+    {
+      "type": "heading",
+      "text": "Another Section"
+    },
+    {
+      "type": "paragraph",
+      "text": "More paragraph content..."
+    }
+  ]
+}
+
+Content types:
+- "heading": For titles, section headers, main topics (should be short, descriptive)
+- "paragraph": For regular text content, explanations, descriptions
+- "list": For bullet points, key points, numbered items
+
 Guidelines:
 - Create a well-structured summary that captures the essence of the document
 - Focus on main concepts, key points, and important details
@@ -127,27 +160,29 @@ Guidelines:
 - Highlight definitions, formulas, and critical information
 - Make it easy to read and study from
 - Keep it comprehensive but concise
-- Return only the summary text, no meta-commentary or explanations''';
+- Return ONLY valid JSON, no markdown, no extra text, no explanations''';
 
     final userPrompt = documentContent != null && documentContent.isNotEmpty
-        ? '''Please create a comprehensive, well-structured summary of the following document titled "$documentTitle".
+        ? '''Create a comprehensive, well-structured summary of the following document titled "$documentTitle".
 
 Document Content:
 $documentContent
 
 Requirements:
-1. Start with a brief overview of the document's main topic and purpose
+1. Start with a brief overview paragraph of the document's main topic and purpose
 2. Organize the summary into clear sections with headings
 3. Include all key concepts, definitions, and important information
 4. Highlight any formulas, equations, or technical terms
 5. Summarize main points and supporting details
 6. Make it study-friendly and easy to review
-7. Use clear formatting with headings, bullet points, and paragraphs
+7. Use headings for main topics, paragraphs for explanations, and lists for key points
 8. Ensure the summary is comprehensive enough to be useful for studying
 
-Format the summary with clear sections and proper structure. Return only the summary text.'''
+Return the summary as a JSON object following the exact structure specified. Use "heading" for titles/sections, "paragraph" for regular text, and "list" for bullet points. Return ONLY the JSON object, nothing else.'''
         : '''Please provide a summary for the document "$documentTitle". 
-${context != null ? 'Context: $context' : 'Generate a general summary structure that would be helpful for studying this topic.'}''';
+${context != null ? 'Context: $context' : 'Generate a general summary structure that would be helpful for studying this topic.'}
+
+Return the summary as a JSON object following the exact structure: {"sections": [{"type": "heading|paragraph|list", "text": "..." or "items": [...]}]}. Return ONLY the JSON object, nothing else.''';
 
     return await chat(
       messages: [
@@ -156,6 +191,7 @@ ${context != null ? 'Context: $context' : 'Generate a general summary structure 
       systemPrompt: systemPrompt,
       temperature:
           0.3, // Lower temperature for more focused, consistent summaries
+      maxTokens: 4000, // Increased for longer summaries
     );
   }
 

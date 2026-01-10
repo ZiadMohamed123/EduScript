@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
 import '../services/document_service.dart';
-import 'quiz_generator_page.dart';
 import 'QuizCustomizationPage.dart';
 import 'SavedQuizzesListPage.dart';
 import '../providers/document_provider.dart';
@@ -46,6 +45,8 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
   String _sortBy = 'date'; // 'date' or 'name'
 
   bool _isLoading = false;
+  Document? _pendingDelete;
+  bool _isDeleting = false;
 
   @override
   void initState() {
@@ -68,7 +69,7 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
 
       if (mounted) {
         setState(() {
-          _documents = documents;
+          _documents = List<Document>.from(documents); // Create mutable copy
           _isLoading = false;
         });
       }
@@ -79,8 +80,61 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to load documents: ${e.toString()}'),
-            backgroundColor: Colors.red,
+            content: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Colors.red, Colors.redAccent],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.red.withOpacity(0.4),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                    spreadRadius: 1,
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.25),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.error_outline,
+                        color: Colors.white, size: 18),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Failed to load documents: ${e.toString()}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            margin: const EdgeInsets.all(16),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            clipBehavior: Clip.antiAlias,
           ),
         );
       }
@@ -176,188 +230,378 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
       }
     });
 
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(
-        title:
-            Text(widget.showRecentsOnly ? 'Recent Documents' : 'My Documents'),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: widget.showRecentsOnly
+                      ? [
+                          AppColors.cyan,
+                          AppColors.primary,
+                          AppColors.primaryDark,
+                        ]
+                      : [
+                          AppColors.primary,
+                          AppColors.cyan,
+                          AppColors.accent,
+                        ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Icon(
+                widget.showRecentsOnly ? Icons.history_rounded : Icons.folder,
+                color: Colors.white,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              widget.showRecentsOnly ? 'Recent Documents' : 'My Documents',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 24,
+              ),
+            ),
+          ],
+        ),
         elevation: 0,
         actions: [
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.sort),
-            onSelected: (value) {
-              setState(() {
-                _sortBy = value;
-              });
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'date',
-                child: Row(
-                  children: [
-                    Icon(Icons.calendar_today, size: 20),
-                    SizedBox(width: 8),
-                    Text('Sort by Date'),
-                  ],
-                ),
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.surfaceDark : AppColors.blue50,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: PopupMenuButton<String>(
+              icon: Icon(
+                Icons.sort,
+                color: isDark ? AppColors.textPrimaryDark : AppColors.primary,
+                size: 22,
               ),
-              const PopupMenuItem(
-                value: 'name',
-                child: Row(
-                  children: [
-                    Icon(Icons.sort_by_alpha, size: 20),
-                    SizedBox(width: 8),
-                    Text('Sort by Name'),
-                  ],
+              padding: const EdgeInsets.all(8),
+              onSelected: (value) {
+                setState(() {
+                  _sortBy = value;
+                });
+              },
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: 'date',
+                  child: Row(
+                    children: [
+                      Icon(Icons.calendar_today, size: 20),
+                      SizedBox(width: 8),
+                      Text('Sort by Date'),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+                const PopupMenuItem(
+                  value: 'name',
+                  child: Row(
+                    children: [
+                      Icon(Icons.sort_by_alpha, size: 20),
+                      SizedBox(width: 8),
+                      Text('Sort by Name'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Search Bar
-          Builder(
-            builder: (context) {
-              final scheme = Theme.of(context).colorScheme;
-              final isDark = scheme.brightness == Brightness.dark;
-              return Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: TextField(
-                  onChanged: (value) {
-                    setState(() {
-                      _searchQuery = value;
-                    });
-                  },
-                  style: TextStyle(color: scheme.onSurface),
-                  decoration: InputDecoration(
-                    hintText: 'Search documents...',
-                    hintStyle: TextStyle(
-                        color: scheme.onSurfaceVariant.withOpacity(0.6)),
-                    prefixIcon: Icon(Icons.search, color: scheme.primary),
-                    suffixIcon: _searchQuery.isNotEmpty
-                        ? IconButton(
-                            icon: Icon(Icons.clear,
-                                color: scheme.onSurfaceVariant),
-                            onPressed: () {
-                              setState(() {
-                                _searchQuery = '';
-                              });
-                            },
-                          )
-                        : null,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: scheme.outline),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: isDark
+              ? null
+              : LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    AppColors.background,
+                    AppColors.blue50.withOpacity(0.4),
+                    AppColors.cyanLight.withOpacity(0.15),
+                  ],
+                  stops: const [0.0, 0.5, 1.0],
+                ),
+        ),
+        child: Stack(
+          children: [
+            // Decorative background shapes
+            if (!isDark) ...[
+              Positioned(
+                top: 100,
+                right: -40,
+                child: Container(
+                  width: 150,
+                  height: 150,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        AppColors.cyanLight.withOpacity(0.12),
+                        Colors.transparent,
+                      ],
                     ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: scheme.outline),
+                  ),
+                ),
+              ),
+              Positioned(
+                bottom: 50,
+                left: -50,
+                child: Container(
+                  width: 180,
+                  height: 180,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        AppColors.indigoLight.withOpacity(0.1),
+                        Colors.transparent,
+                      ],
                     ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: scheme.primary, width: 2),
+                  ),
+                ),
+              ),
+            ],
+            Column(
+              children: [
+                // Search Bar
+                Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: isDark ? AppColors.surfaceDark : AppColors.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: isDark
+                              ? Colors.black.withOpacity(0.25)
+                              : AppColors.primary.withOpacity(0.12),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                          spreadRadius: 0.5,
+                        ),
+                      ],
+                    ),
+                    child: TextField(
+                      onChanged: (value) {
+                        setState(() {
+                          _searchQuery = value;
+                        });
+                      },
+                      style: TextStyle(
+                        color: isDark
+                            ? AppColors.textPrimaryDark
+                            : AppColors.textPrimary,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: 'Search documents...',
+                        hintStyle: TextStyle(
+                          color: isDark
+                              ? AppColors.textSecondaryDark
+                              : AppColors.textSecondary.withOpacity(0.6),
+                        ),
+                        prefixIcon: Container(
+                          margin: const EdgeInsets.all(8),
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [AppColors.primary, AppColors.cyan],
+                            ),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                            Icons.search,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                        suffixIcon: _searchQuery.isNotEmpty
+                            ? IconButton(
+                                icon: Icon(
+                                  Icons.clear,
+                                  color: isDark
+                                      ? AppColors.textSecondaryDark
+                                      : AppColors.textSecondary,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _searchQuery = '';
+                                  });
+                                },
+                              )
+                            : null,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide(
+                            color: isDark
+                                ? AppColors.surfaceDarkVariant
+                                : Colors.transparent,
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide(
+                            color: isDark
+                                ? AppColors.surfaceDarkVariant
+                                : Colors.transparent,
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide(
+                            color: AppColors.primary,
+                            width: 2,
+                          ),
+                        ),
+                        filled: true,
+                        fillColor: Colors.transparent,
+                      ),
                     ),
                     filled: true,
                     fillColor: scheme.surfaceContainerHighest
                         .withOpacity(isDark ? 0.3 : 0.7),
                   ),
                 ),
-              );
-            },
-          ),
 
-          // Documents List
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : filteredDocuments.isEmpty
-                    ? _buildEmptyState()
-                    : LayoutBuilder(
-                        builder: (context, constraints) {
-                          final isLandscape =
-                              MediaQuery.of(context).orientation ==
-                                  Orientation.landscape;
-                          final crossAxisCount = isLandscape
-                              ? (constraints.maxWidth / 300).floor().clamp(2, 4)
-                              : 1;
+                // Documents List
+                Expanded(
+                  child: _isLoading
+                      ? Center(
+                          child: CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              AppColors.primary,
+                            ),
+                          ),
+                        )
+                      : filteredDocuments.isEmpty
+                          ? _buildEmptyState(isDark)
+                          : LayoutBuilder(
+                              builder: (context, constraints) {
+                                final isLandscape =
+                                    MediaQuery.of(context).orientation ==
+                                        Orientation.landscape;
+                                final crossAxisCount = isLandscape
+                                    ? (constraints.maxWidth / 300)
+                                        .floor()
+                                        .clamp(2, 4)
+                                    : 1;
 
-                          if (isLandscape && crossAxisCount > 1) {
-                            // Grid layout for landscape - improved spacing
-                            return GridView.builder(
-                              padding: EdgeInsets.symmetric(
-                                horizontal:
-                                    constraints.maxWidth > 800 ? 32 : 16,
-                                vertical: 16,
-                              ),
-                              gridDelegate:
-                                  SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: crossAxisCount,
-                                crossAxisSpacing:
-                                    constraints.maxWidth > 800 ? 24 : 16,
-                                mainAxisSpacing:
-                                    constraints.maxWidth > 800 ? 24 : 16,
-                                childAspectRatio:
-                                    constraints.maxWidth > 800 ? 1.3 : 1.2,
-                              ),
-                              itemCount: filteredDocuments.length,
-                              itemBuilder: (context, index) {
-                                return _DocumentCard(
-                                  document: filteredDocuments[index],
-                                  onTap: () {
-                                    _showDocumentOptions(
-                                        context, filteredDocuments[index]);
-                                  },
-                                  onDelete: () {
-                                    _deleteDocument(filteredDocuments[index]);
-                                  },
-                                );
+                                if (isLandscape && crossAxisCount > 1) {
+                                  // Grid layout for landscape - improved spacing
+                                  return GridView.builder(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal:
+                                          constraints.maxWidth > 800 ? 32 : 16,
+                                      vertical: 16,
+                                    ),
+                                    gridDelegate:
+                                        SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: crossAxisCount,
+                                      crossAxisSpacing:
+                                          constraints.maxWidth > 800 ? 24 : 16,
+                                      mainAxisSpacing:
+                                          constraints.maxWidth > 800 ? 24 : 16,
+                                      childAspectRatio:
+                                          constraints.maxWidth > 800
+                                              ? 1.3
+                                              : 1.2,
+                                    ),
+                                    itemCount: filteredDocuments.length,
+                                    itemBuilder: (context, index) {
+                                      return _DocumentCard(
+                                        document: filteredDocuments[index],
+                                        onTap: () {
+                                          _showDocumentOptions(context,
+                                              filteredDocuments[index]);
+                                        },
+                                        onDelete: () {
+                                          _deleteDocument(
+                                              filteredDocuments[index]);
+                                        },
+                                      );
+                                    },
+                                  );
+                                } else {
+                                  // List layout for portrait
+                                  return ListView.builder(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16),
+                                    itemCount: filteredDocuments.length,
+                                    itemBuilder: (context, index) {
+                                      return _DocumentCard(
+                                        document: filteredDocuments[index],
+                                        onTap: () {
+                                          _showDocumentOptions(context,
+                                              filteredDocuments[index]);
+                                        },
+                                        onDelete: () {
+                                          _deleteDocument(
+                                              filteredDocuments[index]);
+                                        },
+                                      );
+                                    },
+                                  );
+                                }
                               },
-                            );
-                          } else {
-                            // List layout for portrait
-                            return ListView.builder(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 16),
-                              itemCount: filteredDocuments.length,
-                              itemBuilder: (context, index) {
-                                return _DocumentCard(
-                                  document: filteredDocuments[index],
-                                  onTap: () {
-                                    _showDocumentOptions(
-                                        context, filteredDocuments[index]);
-                                  },
-                                  onDelete: () {
-                                    _deleteDocument(filteredDocuments[index]);
-                                  },
-                                );
-                              },
-                            );
-                          }
-                        },
-                      ),
-          ),
-        ],
+                            ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(bool isDark) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.folder_open,
-            size: 64,
-            color: Colors.grey.shade400,
+          Container(
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  AppColors.primary.withOpacity(0.1),
+                  AppColors.cyan.withOpacity(0.05),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              _searchQuery.isNotEmpty ? Icons.search_off : Icons.folder_open,
+              size: 80,
+              color: AppColors.primary.withOpacity(0.5),
+            ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
           Text(
             _searchQuery.isNotEmpty ? 'No documents found' : 'No documents yet',
             style: TextStyle(
-              fontSize: 18,
-              color: Colors.grey.shade600,
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary,
             ),
           ),
           const SizedBox(height: 8),
@@ -366,8 +610,10 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
                 ? 'Try a different search term'
                 : 'Upload a document to get started',
             style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey.shade500,
+              fontSize: 16,
+              color: isDark
+                  ? AppColors.textSecondaryDark
+                  : AppColors.textSecondary,
             ),
           ),
         ],
@@ -379,26 +625,32 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
     final parentContext = context;
     final scaffoldMessenger = ScaffoldMessenger.of(context);
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (modalContext) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(height: 12),
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade300,
-              borderRadius: BorderRadius.circular(2),
+      backgroundColor: Colors.transparent,
+      builder: (modalContext) => Container(
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.surfaceDark : AppColors.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [AppColors.primary, AppColors.cyan],
+                ),
+                borderRadius: BorderRadius.circular(4),
+              ),
             ),
-          ),
-          const SizedBox(height: 20),
-          // View PDF option
-          ListTile(
+            const SizedBox(height: 20),
+            _buildActionTile(
             leading: const Icon(Icons.file_open),
             title: const Text('View PDF'),
             subtitle: const Text('Open document'),
@@ -408,86 +660,156 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
             },
           ),
           const Divider(height: 8),
-          ListTile(
-            leading: const Icon(Icons.summarize),
-            title: const Text('View Summary'),
-            onTap: () {
-              Navigator.pop(modalContext);
-              Navigator.pushNamed(
-                parentContext,
-                '/document-summary',
-                arguments: document,
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.quiz),
-            title: const Text('Generate Quiz'),
-            onTap: () async {
-              Navigator.pop(modalContext);
+            _buildActionTile(
+              modalContext,
+              icon: Icons.summarize,
+              title: 'View Summary',
+              gradient: const LinearGradient(
+                colors: [AppColors.primary, AppColors.cyan],
+              ),
+              onTap: () {
+                Navigator.pop(modalContext);
+                Navigator.pushNamed(
+                  parentContext,
+                  '/document-summary',
+                  arguments: document,
+                );
+              },
+            ),
+            _buildActionTile(
+              modalContext,
+              icon: Icons.quiz,
+              title: 'Generate Quiz',
+              gradient: const LinearGradient(
+                colors: [AppColors.cyan, AppColors.primary],
+              ),
+              onTap: () async {
+                Navigator.pop(modalContext);
 
-              try {
-                final extractedText =
-                    await _documentService.getExtractedText(document.id);
+                try {
+                  // Fetch the extracted text from the document
+                  final extractedText =
+                      await _documentService.getExtractedText(document.id);
 
-                if (extractedText == null || extractedText.isEmpty) {
+                  if (extractedText == null || extractedText.isEmpty) {
+                    if (mounted) {
+                      scaffoldMessenger.showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                              'No text found in document. Please make sure the document has been processed.'),
+                          backgroundColor: Colors.orange,
+                        ),
+                      );
+                    }
+                    return;
+                  }
+
+                  // Navigate to quiz CUSTOMIZATION page first
                   if (mounted) {
-                    scaffoldMessenger.showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                            'No text found in document. Please make sure the document has been processed.'),
-                        backgroundColor: Colors.orange,
+                    Navigator.push(
+                      parentContext,
+                      MaterialPageRoute(
+                        builder: (_) => QuizCustomizationPage(
+                          documentId: document.id,
+                          documentTitle: document.title,
+                          extractedText: extractedText,
+                        ),
                       ),
                     );
                   }
-                  return;
-                }
-
-                if (mounted) {
-                  Navigator.push(
-                    parentContext,
-                    MaterialPageRoute(
-                      builder: (_) => QuizGeneratorPage(
-                        documentId: document.id,
-                        documentTitle: document.title,
-                        extractedText: extractedText,
-                        autoGenerate: true,
+                } catch (e) {
+                  if (mounted) {
+                    scaffoldMessenger.showSnackBar(
+                      SnackBar(
+                        content: Text(
+                            'Failed to load document text: ${e.toString()}'),
+                        backgroundColor: Colors.red,
                       ),
-                    ),
-                  );
+                    );
+                  }
                 }
-              } catch (e) {
-                if (mounted) {
-                  scaffoldMessenger.showSnackBar(
-                    SnackBar(
-                      content:
-                          Text('Failed to load document text: ${e.toString()}'),
-                      backgroundColor: Colors.red,
+              },
+            ),
+            _buildActionTile(
+              modalContext,
+              icon: Icons.library_books,
+              title: 'View Quizzes',
+              gradient: const LinearGradient(
+                colors: [AppColors.primaryDark, AppColors.indigo],
+              ),
+              onTap: () {
+                Navigator.pop(modalContext);
+                Navigator.push(
+                  parentContext,
+                  MaterialPageRoute(
+                    builder: (_) => SavedQuizzesListPage(
+                      documentId: document.id,
                     ),
-                  );
-                }
-              }
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.library_books),
-            title: const Text('View Quizzes'),
-            onTap: () {
-              Navigator.pop(modalContext);
-              Navigator.pushNamed(parentContext, '/saved-quizzes');
-            },
-          ),
-          const Divider(height: 8),
-          ListTile(
-            leading: const Icon(Icons.delete, color: Colors.red),
-            title: const Text('Delete', style: TextStyle(color: Colors.red)),
-            onTap: () {
-              Navigator.pop(modalContext);
-              _deleteDocument(document);
-            },
-          ),
-        ],
+                  ),
+                );
+              },
+            ),
+            _buildActionTile(
+              modalContext,
+              icon: Icons.delete,
+              title: 'Delete',
+              gradient: const LinearGradient(
+                colors: [Colors.red, Colors.redAccent],
+              ),
+              isDestructive: true,
+              onTap: () {
+                Navigator.pop(modalContext);
+                _deleteDocument(document);
+              },
+            ),
+            const SizedBox(height: 12),
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _buildActionTile(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required Gradient gradient,
+    required VoidCallback onTap,
+    bool isDestructive = false,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+      leading: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          gradient: gradient,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: gradient.colors.first.withOpacity(0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Icon(
+          icon,
+          color: Colors.white,
+          size: 22,
+        ),
+      ),
+      title: Text(
+        title,
+        style: TextStyle(
+          fontWeight: FontWeight.w600,
+          color: isDestructive
+              ? Colors.red
+              : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimary),
+        ),
+      ),
+      onTap: onTap,
     );
   }
 
@@ -505,34 +827,363 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
-              try {
-                await _documentService.deleteDocument(document.id);
-                await _loadDocuments();
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Document deleted successfully'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                }
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content:
-                          Text('Failed to delete document: ${e.toString()}'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              }
+              await _performDelete(document);
             },
             child: const Text('Delete', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _performDelete(Document document) async {
+    // Store the document for potential undo
+    _pendingDelete = document;
+    _isDeleting = false;
+
+    // Remove from UI immediately (optimistic update)
+    if (mounted) {
+      setState(() {
+        _documents = List<Document>.from(_documents)
+          ..removeWhere((doc) => doc.id == document.id);
+      });
+    }
+
+    // Show snackbar with undo option
+    if (mounted) {
+      final isDark = Theme.of(context).brightness == Brightness.dark;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: isDark
+                    ? [
+                        AppColors.surfaceDarkVariant,
+                        AppColors.primaryDarkVariant.withOpacity(0.8),
+                      ]
+                    : [
+                        AppColors.primary,
+                        AppColors.cyan,
+                        AppColors.accent,
+                      ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: (isDark
+                          ? AppColors.primaryDarkVariant
+                          : AppColors.primary)
+                      .withOpacity(0.4),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Colors.red, Colors.redAccent],
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.red.withOpacity(0.4),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(Icons.delete_outline,
+                      color: Colors.white, size: 18),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Document "${document.title}" deleted',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.white.withOpacity(0.3),
+                        Colors.white.withOpacity(0.2),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.3),
+                      width: 1.5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: TextButton(
+                    onPressed: () {
+                      _undoDelete();
+                    },
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: const Text(
+                      'UNDO',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        letterSpacing: 1.0,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          margin: const EdgeInsets.all(16),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 5),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          clipBehavior: Clip.antiAlias,
+        ),
+      );
+
+      // Set a timer to actually delete after 5 seconds if not undone
+      Future.delayed(const Duration(seconds: 5), () {
+        if (_pendingDelete != null &&
+            _pendingDelete!.id == document.id &&
+            !_isDeleting &&
+            mounted) {
+          _confirmDelete(_pendingDelete!);
+        }
+      });
+    }
+  }
+
+  void _undoDelete() {
+    if (_pendingDelete != null && !_isDeleting && mounted) {
+      // Hide the current delete snackbar immediately
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+      // Restore the document to the list
+      final docToRestore = _pendingDelete!;
+      _pendingDelete = null;
+      _isDeleting = false;
+
+      setState(() {
+        final mutableList = List<Document>.from(_documents);
+        if (!mutableList.any((doc) => doc.id == docToRestore.id)) {
+          mutableList.add(docToRestore);
+          // Re-sort to maintain order
+          mutableList.sort((a, b) {
+            if (_sortBy == 'date') {
+              return b.dateCreated.compareTo(a.dateCreated);
+            } else {
+              return a.title.compareTo(b.title);
+            }
+          });
+          _documents = mutableList;
+        }
+      });
+
+      if (mounted) {
+        // Show the restore snackbar immediately after hiding the delete one
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Colors.green, Colors.greenAccent],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.green.withOpacity(0.4),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                    spreadRadius: 1,
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.25),
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.2),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child:
+                        const Icon(Icons.undo, color: Colors.white, size: 18),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Document "${docToRestore.title}" restored',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            margin: const EdgeInsets.all(16),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            clipBehavior: Clip.antiAlias,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _confirmDelete(Document document) async {
+    // Only delete if it's still pending (wasn't undone) and not already deleting
+    if (_pendingDelete?.id != document.id || _isDeleting || !mounted) {
+      return;
+    }
+
+    _isDeleting = true;
+
+    try {
+      await _documentService.deleteDocument(document.id);
+      if (mounted) {
+        setState(() {
+          _pendingDelete = null;
+          _isDeleting = false;
+        });
+      }
+    } catch (e) {
+      // If deletion fails, restore the document to the list
+      if (mounted) {
+        setState(() {
+          final mutableList = List<Document>.from(_documents);
+          if (!mutableList.any((doc) => doc.id == document.id)) {
+            mutableList.add(document);
+            // Re-sort
+            mutableList.sort((a, b) {
+              if (_sortBy == 'date') {
+                return b.dateCreated.compareTo(a.dateCreated);
+              } else {
+                return a.title.compareTo(b.title);
+              }
+            });
+            _documents = mutableList;
+          }
+          _pendingDelete = null;
+          _isDeleting = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Colors.red, Colors.redAccent],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.red.withOpacity(0.4),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                    spreadRadius: 1,
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.25),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.error_outline,
+                        color: Colors.white, size: 18),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Failed to delete document: ${e.toString()}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            margin: const EdgeInsets.all(16),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            clipBehavior: Clip.antiAlias,
+          ),
+        );
+      }
+    }
   }
 }
 
@@ -549,121 +1200,259 @@ class _DocumentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final gradient = _getDocumentGradient();
+
+    return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Row(
-            children: [
-              // Thumbnail/Icon
-              Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  color: AppColors.accent.withOpacity(0.25),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.description,
-                  color: AppColors.primary,
-                  size: 32,
-                ),
-              ),
-              const SizedBox(width: 16),
-
-              // Document Info
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      document.title,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.surfaceDark : AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: isDark
+                ? Colors.black.withOpacity(0.25)
+                : AppColors.primary.withOpacity(0.12),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+            spreadRadius: 0.5,
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Row(
+              children: [
+                // Thumbnail/Icon
+                Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    gradient: gradient,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: gradient.colors.first.withOpacity(0.4),
+                        blurRadius: 12,
+                        offset: const Offset(0, 5),
+                        spreadRadius: 0.5,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      BoxShadow(
+                        color: gradient.colors.last.withOpacity(0.25),
+                        blurRadius: 8,
+                        offset: const Offset(-2, -2),
+                      ),
+                    ],
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.25),
+                      width: 1.5,
                     ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.calendar_today,
-                          size: 14,
-                          color: Colors.grey.shade600,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          _formatDate(document.dateCreated),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Icon(
-                          Icons.pages,
-                          size: 14,
-                          color: Colors.grey.shade600,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${document.pageCount} ${document.pageCount == 1 ? 'page' : 'pages'}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                  ),
+                  child: const Icon(
+                    Icons.description,
+                    color: Colors.white,
+                    size: 32,
+                  ),
                 ),
-              ),
+                const SizedBox(width: 16),
 
-              // Actions
-              PopupMenuButton(
-                icon: const Icon(Icons.more_vert),
-                itemBuilder: (context) => [
-                  const PopupMenuItem(
-                    value: 'view',
-                    child: Row(
-                      children: [
-                        Icon(Icons.visibility, size: 20),
-                        SizedBox(width: 8),
-                        Text('View'),
-                      ],
-                    ),
+                // Document Info
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        document.title,
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: isDark
+                              ? AppColors.textPrimaryDark
+                              : AppColors.textPrimary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? AppColors.surfaceDarkVariant
+                                  : AppColors.blue50,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.calendar_today,
+                                  size: 14,
+                                  color: AppColors.primary,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  _formatDate(document.dateCreated),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? AppColors.surfaceDarkVariant
+                                  : AppColors.cyanLight.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.pages,
+                                  size: 14,
+                                  color: AppColors.cyan,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${document.pageCount} ${document.pageCount == 1 ? 'page' : 'pages'}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.cyan,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                  const PopupMenuItem(
-                    value: 'delete',
-                    child: Row(
-                      children: [
-                        Icon(Icons.delete, size: 20, color: Colors.red),
-                        SizedBox(width: 8),
-                        Text('Delete', style: TextStyle(color: Colors.red)),
-                      ],
-                    ),
+                ),
+
+                // Actions
+                Container(
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? AppColors.surfaceDarkVariant
+                        : AppColors.blue50,
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                ],
-                onSelected: (value) {
-                  if (value == 'view') {
-                    onTap();
-                  } else if (value == 'delete') {
-                    onDelete();
-                  }
-                },
-              ),
-            ],
+                  child: PopupMenuButton(
+                    icon: Icon(
+                      Icons.more_vert,
+                      color: AppColors.primary,
+                      size: 22,
+                    ),
+                    itemBuilder: (context) => [
+                      PopupMenuItem(
+                        value: 'view',
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [AppColors.primary, AppColors.cyan],
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(
+                                Icons.visibility,
+                                size: 16,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            const Text('View'),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: Colors.red,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(
+                                Icons.delete,
+                                size: 16,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            const Text(
+                              'Delete',
+                              style: TextStyle(color: Colors.red),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    onSelected: (value) {
+                      if (value == 'view') {
+                        onTap();
+                      } else if (value == 'delete') {
+                        onDelete();
+                      }
+                    },
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
+  }
+
+  Gradient _getDocumentGradient() {
+    // Create different gradients for variety while maintaining cohesion
+    final gradients = [
+      const LinearGradient(
+        colors: [AppColors.primary, AppColors.cyan, AppColors.accent],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      const LinearGradient(
+        colors: [AppColors.cyan, AppColors.primary, AppColors.primaryDark],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      const LinearGradient(
+        colors: [AppColors.primaryDark, AppColors.indigo, AppColors.primary],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+    ];
+    // Use document ID hash to consistently assign gradient
+    final index = document.id.hashCode % gradients.length;
+    return gradients[index.abs()];
   }
 
   String _formatDate(DateTime date) {
