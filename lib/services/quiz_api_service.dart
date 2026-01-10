@@ -19,7 +19,7 @@ class QuizApiService {
   }
 
   /// Base URL of your Node backend.
-  /// 
+  ///
   /// If BACKEND_BASE_URL is set in .env, it will be used.
   /// Otherwise, automatically detects the platform:
   /// - Android Emulator: http://10.0.2.2:5000
@@ -28,7 +28,7 @@ class QuizApiService {
   /// - Physical Device: You must set BACKEND_BASE_URL to your computer's IP
   String get backendBaseUrl {
     try {
-      final envUrl = dotenv.env['BACKEND_BASE_URL'];
+      final envUrl = dotenv.env['BACKEND_URL'];
       if (envUrl != null && envUrl.isNotEmpty) {
         return envUrl;
       }
@@ -95,7 +95,7 @@ class QuizApiService {
     if (trueFalseCount > 0) types.add('$trueFalseCount T/F');
     if (shortAnswerCount > 0) types.add('$shortAnswerCount Short');
     if (essayCount > 0) types.add('$essayCount Essay');
-    
+
     final distribution = types.join(', ');
 
     return '''Generate $totalQuestions questions ($distribution) from these notes as a JSON array.
@@ -131,16 +131,14 @@ JSON array:''';
     // Validate API key before making request
     final key = apiKey;
     if (key.isEmpty) {
-      throw Exception(
-        'API key is missing or empty!\n\n'
-        'Please check:\n'
-        '1. Create a .env file in the project root (same folder as pubspec.yaml)\n'
-        '2. Add this line: GEMINI_API_KEY=your-api-key-here\n'
-        '3. Make sure there are NO spaces around the = sign\n'
-        '4. Restart the app completely (hot reload won\'t work)\n'
-        '5. Run: flutter pub get\n\n'
-        'Get your API key from: https://aistudio.google.com/app/apikey'
-      );
+      throw Exception('API key is missing or empty!\n\n'
+          'Please check:\n'
+          '1. Create a .env file in the project root (same folder as pubspec.yaml)\n'
+          '2. Add this line: GEMINI_API_KEY=your-api-key-here\n'
+          '3. Make sure there are NO spaces around the = sign\n'
+          '4. Restart the app completely (hot reload won\'t work)\n'
+          '5. Run: flutter pub get\n\n'
+          'Get your API key from: https://aistudio.google.com/app/apikey');
     }
 
     // Use defaults if not provided
@@ -161,10 +159,11 @@ JSON array:''';
     );
 
     // Use Google Gemini API endpoint
-    final model = _getEnv('GEMINI_MODEL').isEmpty ? 'gemini-2.5-flash' : _getEnv('GEMINI_MODEL');
+    final model = _getEnv('GEMINI_MODEL').isEmpty
+        ? 'gemini-2.5-flash'
+        : _getEnv('GEMINI_MODEL');
     final url = Uri.parse(
-      "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$key"
-    );
+        "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$key");
 
     final headers = <String, String>{
       "Content-Type": "application/json",
@@ -201,34 +200,29 @@ JSON array:''';
           final errorMessage = error['message'] as String? ?? 'Unknown error';
           final errorCode = error['code'] as int?;
           final errorStatus = error['status'] as String?;
-          
+
           if (errorStatus == 'RESOURCE_EXHAUSTED' || errorCode == 429) {
-            throw Exception(
-              'Gemini API Quota Exceeded\n\n'
-              'Your API key has exceeded its usage quota.\n\n'
-              'Troubleshooting steps:\n'
-              '1. Check your quota and usage:\n'
-              '   https://aistudio.google.com/app/apikey\n\n'
-              '2. Verify your API key is valid\n\n'
-              '3. Wait a few minutes and try again\n\n'
-              '4. Check if you need to enable billing\n\n'
-              'API Key used: ${key.substring(0, key.length > 12 ? 12 : key.length)}...\n'
-              'Get a new key at: https://aistudio.google.com/app/apikey'
-            );
+            throw Exception('Gemini API Quota Exceeded\n\n'
+                'Your API key has exceeded its usage quota.\n\n'
+                'Troubleshooting steps:\n'
+                '1. Check your quota and usage:\n'
+                '   https://aistudio.google.com/app/apikey\n\n'
+                '2. Verify your API key is valid\n\n'
+                '3. Wait a few minutes and try again\n\n'
+                '4. Check if you need to enable billing\n\n'
+                'API Key used: ${key.substring(0, key.length > 12 ? 12 : key.length)}...\n'
+                'Get a new key at: https://aistudio.google.com/app/apikey');
           } else if (errorStatus == 'UNAUTHENTICATED' || errorCode == 401) {
-            throw Exception(
-              'Invalid API Key\n\n'
-              'Your Gemini API key is invalid or has been revoked.\n\n'
-              'Get a new key from:\n'
-              'https://aistudio.google.com/app/apikey'
-            );
+            throw Exception('Invalid API Key\n\n'
+                'Your Gemini API key is invalid or has been revoked.\n\n'
+                'Get a new key from:\n'
+                'https://aistudio.google.com/app/apikey');
           } else if (errorStatus == 'RESOURCE_EXHAUSTED' || errorCode == 429) {
-            throw Exception(
-              'Rate Limit Exceeded\n\n'
-              'Too many requests. Please wait a moment and try again.'
-            );
+            throw Exception('Rate Limit Exceeded\n\n'
+                'Too many requests. Please wait a moment and try again.');
           } else {
-            throw Exception('Gemini API Error: $errorMessage\nStatus: $errorStatus');
+            throw Exception(
+                'Gemini API Error: $errorMessage\nStatus: $errorStatus');
           }
         }
       } catch (e) {
@@ -244,15 +238,16 @@ JSON array:''';
     final data = jsonDecode(response.body);
 
     // Gemini API returns content in candidates[0].content.parts[0].text
-    final content = data['candidates']?[0]?['content']?['parts']?[0]?['text'] as String?;
+    final content =
+        data['candidates']?[0]?['content']?['parts']?[0]?['text'] as String?;
 
     if (content == null || content.isEmpty) {
       throw Exception("No content in API response.");
     }
-    
+
     // Extract JSON from the response (might have markdown code blocks)
     String jsonContent = content.trim();
-    
+
     // Remove markdown code blocks
     if (jsonContent.startsWith('```json')) {
       jsonContent = jsonContent.substring(7);
@@ -268,17 +263,16 @@ JSON array:''';
     // Debug: Print what we're trying to parse
     print('🔍 Raw content length: ${content.length}');
     print('🔍 Cleaned JSON length: ${jsonContent.length}');
-    print('🔍 First 200 chars: ${jsonContent.length > 200 ? jsonContent.substring(0, 200) : jsonContent}...');
+    print(
+        '🔍 First 200 chars: ${jsonContent.length > 200 ? jsonContent.substring(0, 200) : jsonContent}...');
 
     // Check if content is empty
     if (jsonContent.isEmpty) {
-      throw Exception(
-        "Gemini returned empty response. This might be due to:\n"
-        "1. Content safety filters\n"
-        "2. The notes being too short or unclear\n"
-        "3. API quota exceeded\n\n"
-        "Try with different notes or check your API usage."
-      );
+      throw Exception("Gemini returned empty response. This might be due to:\n"
+          "1. Content safety filters\n"
+          "2. The notes being too short or unclear\n"
+          "3. API quota exceeded\n\n"
+          "Try with different notes or check your API usage.");
     }
 
     // Try to parse as JSON
@@ -289,37 +283,34 @@ JSON array:''';
       // If JSON parsing fails, try to extract JSON array from text
       print('❌ JSON parse error: $e');
       print('🔍 Attempting to extract JSON array from text...');
-      
+
       // Try to find JSON array in the text
-      final jsonArrayMatch = RegExp(r'\[\s*\{.*\}\s*\]', dotAll: true).firstMatch(jsonContent);
+      final jsonArrayMatch =
+          RegExp(r'\[\s*\{.*\}\s*\]', dotAll: true).firstMatch(jsonContent);
       if (jsonArrayMatch != null) {
         try {
           jsonContent = jsonArrayMatch.group(0)!;
           parsedData = jsonDecode(jsonContent);
           print('✅ Successfully extracted JSON array!');
         } catch (e2) {
-          throw Exception(
-            "Failed to parse Gemini response as JSON.\n\n"
-            "Raw response:\n${jsonContent.length > 500 ? '${jsonContent.substring(0, 500)}...' : jsonContent}\n\n"
-            "Error: $e2"
-          );
+          throw Exception("Failed to parse Gemini response as JSON.\n\n"
+              "Raw response:\n${jsonContent.length > 500 ? '${jsonContent.substring(0, 500)}...' : jsonContent}\n\n"
+              "Error: $e2");
         }
       } else {
-        throw Exception(
-          "Gemini did not return valid JSON.\n\n"
-          "Raw response:\n${jsonContent.length > 500 ? '${jsonContent.substring(0, 500)}...' : jsonContent}\n\n"
-          "Error: $e\n\n"
-          "Try:\n"
-          "1. Use simpler notes\n"
-          "2. Reduce the number of questions\n"
-          "3. Try again in a few minutes"
-        );
+        throw Exception("Gemini did not return valid JSON.\n\n"
+            "Raw response:\n${jsonContent.length > 500 ? '${jsonContent.substring(0, 500)}...' : jsonContent}\n\n"
+            "Error: $e\n\n"
+            "Try:\n"
+            "1. Use simpler notes\n"
+            "2. Reduce the number of questions\n"
+            "3. Try again in a few minutes");
       }
     }
 
     // Parse the JSON into questions
     List<dynamic> parsedJson;
-    
+
     if (parsedData is Map && parsedData.containsKey('questions')) {
       parsedJson = List<dynamic>.from(parsedData['questions']);
     } else if (parsedData is List) {
@@ -328,11 +319,9 @@ JSON array:''';
       // If it's a single object, wrap it in a list
       parsedJson = [parsedData];
     } else {
-      throw Exception(
-        "Unexpected response format from Gemini API.\n"
-        "Expected: JSON array of questions\n"
-        "Got: ${parsedData.runtimeType}"
-      );
+      throw Exception("Unexpected response format from Gemini API.\n"
+          "Expected: JSON array of questions\n"
+          "Got: ${parsedData.runtimeType}");
     }
 
     print('✅ Successfully parsed ${parsedJson.length} questions');
@@ -342,7 +331,7 @@ JSON array:''';
     for (var i = 0; i < parsedJson.length; i++) {
       try {
         final q = parsedJson[i];
-        
+
         // Validate required fields
         if (q['id'] == null || q['type'] == null || q['text'] == null) {
           print('⚠️ Skipping question $i: Missing required fields');
@@ -350,7 +339,9 @@ JSON array:''';
         }
 
         final question = Question(
-          id: q['id'] is int ? q['id'] : int.tryParse(q['id'].toString()) ?? i + 1,
+          id: q['id'] is int
+              ? q['id']
+              : int.tryParse(q['id'].toString()) ?? i + 1,
           type: QuestionType.values.firstWhere(
             (t) => t.toString().split('.').last == q['type'],
             orElse: () => QuestionType.mcq,
@@ -358,7 +349,7 @@ JSON array:''';
           text: q['text'],
           options: List<String>.from(q['options'] ?? []),
         );
-        
+
         questions.add(question);
       } catch (e) {
         print('⚠️ Error parsing question $i: $e');
@@ -367,14 +358,12 @@ JSON array:''';
     }
 
     if (questions.isEmpty) {
-      throw Exception(
-        "No valid questions were generated.\n\n"
-        "The AI returned ${parsedJson.length} question(s) but none could be parsed.\n\n"
-        "Try:\n"
-        "1. Simplify your notes\n"
-        "2. Use fewer questions\n"
-        "3. Try different question types"
-      );
+      throw Exception("No valid questions were generated.\n\n"
+          "The AI returned ${parsedJson.length} question(s) but none could be parsed.\n\n"
+          "Try:\n"
+          "1. Simplify your notes\n"
+          "2. Use fewer questions\n"
+          "3. Try different question types");
     }
 
     print('✅ Successfully created ${questions.length} Question objects');
@@ -391,10 +380,10 @@ JSON array:''';
   ///     { "text": "...", "answers": [ { "text": "...", "isCorrect": false } ] }
   ///   ]
   /// }
-  /// 
-  /// 
+  ///
+  ///
   /// Save quiz attempt with results
-/// Save quiz attempt with results
+  /// Save quiz attempt with results
 
 // ============================================
 // ADD THIS METHOD TO quiz_api_service.dart
@@ -402,95 +391,102 @@ JSON array:''';
 // ============================================
 
   Future<Map<String, dynamic>> saveQuizToDatabase({
-  required String documentId,
-  required String name,
-  required List<Question> questions,
-  required Map<String, dynamic> quizResults, // ← ADDED
-  String? authToken,
-}) async {
-  final baseUrl = backendBaseUrl;
-  if (baseUrl.isEmpty) {
-    throw Exception('BACKEND_BASE_URL is not set in .env');
-  }
-
-  final token = authToken ?? backendAuthToken;
-  if (token == null || token.isEmpty) {
-    throw Exception('Missing JWT token');
-  }
-
-  final url = Uri.parse('$baseUrl/quiz/add');
-  
-  print('💾 Saving quiz with user answers');
-  
-  // Get feedback list
-  final feedbackList = quizResults['feedback'] as List<dynamic>? ?? [];
-  
-  // Build questions WITH user answers
-  final questionsPayload = questions.asMap().entries.map((entry) {
-    final index = entry.key;
-    final q = entry.value;
-    
-    // Find feedback
-    final feedback = feedbackList.firstWhere(
-      (f) => f['questionId'] == q.id,
-      orElse: () => {'correctAnswer': '', 'userAnswer': '', 'isCorrect': false, 'feedback': ''},
-    );
-    
-    final userAnswer = q.userAnswer ?? '';
-    final correctAnswer = feedback['correctAnswer'] as String? ?? '';
-    
-    List<Map<String, dynamic>>? answers;
-
-    if (q.type == QuestionType.mcq && q.options.isNotEmpty) {
-      answers = q.options.map((opt) {
-        return {
-          'text': opt,
-          'isCorrect': (opt == correctAnswer),
-          'userSelected': (opt == userAnswer), // ← Mark what user selected
-        };
-      }).toList();
-    } else if (q.type == QuestionType.trueFalse) {
-      answers = ['True', 'False'].map((opt) {
-        return {
-          'text': opt,
-          'isCorrect': (opt == correctAnswer),
-          'userSelected': (opt == userAnswer),
-        };
-      }).toList();
+    required String documentId,
+    required String name,
+    required List<Question> questions,
+    required Map<String, dynamic> quizResults, // ← ADDED
+    String? authToken,
+  }) async {
+    final baseUrl = backendBaseUrl;
+    if (baseUrl.isEmpty) {
+      throw Exception('BACKEND_BASE_URL is not set in .env');
     }
 
-    return {
-      'text': q.text,
-      if (answers != null) 'answers': answers,
-    };
-  }).toList();
-
-  try {
-    final response = await http.post(
-      url,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-      body: jsonEncode({
-        'documentID': documentId,
-        'name': name,
-        'questions': questionsPayload,
-      }),
-    ).timeout(const Duration(seconds: 30));
-
-    if (response.statusCode != 201) {
-      throw Exception('Failed: ${response.statusCode}');
+    final token = authToken ?? backendAuthToken;
+    if (token == null || token.isEmpty) {
+      throw Exception('Missing JWT token');
     }
 
-    final data = jsonDecode(response.body) as Map<String, dynamic>;
-    print('   ✅ Saved!');
-    return data;
-  } catch (e) {
-    print('   ❌ Error: $e');
-    rethrow;
+    final url = Uri.parse('$baseUrl/quiz/add');
+
+    print('💾 Saving quiz with user answers');
+
+    // Get feedback list
+    final feedbackList = quizResults['feedback'] as List<dynamic>? ?? [];
+
+    // Build questions WITH user answers
+    final questionsPayload = questions.asMap().entries.map((entry) {
+      final index = entry.key;
+      final q = entry.value;
+
+      // Find feedback
+      final feedback = feedbackList.firstWhere(
+        (f) => f['questionId'] == q.id,
+        orElse: () => {
+          'correctAnswer': '',
+          'userAnswer': '',
+          'isCorrect': false,
+          'feedback': ''
+        },
+      );
+
+      final userAnswer = q.userAnswer ?? '';
+      final correctAnswer = feedback['correctAnswer'] as String? ?? '';
+
+      List<Map<String, dynamic>>? answers;
+
+      if (q.type == QuestionType.mcq && q.options.isNotEmpty) {
+        answers = q.options.map((opt) {
+          return {
+            'text': opt,
+            'isCorrect': (opt == correctAnswer),
+            'userSelected': (opt == userAnswer), // ← Mark what user selected
+          };
+        }).toList();
+      } else if (q.type == QuestionType.trueFalse) {
+        answers = ['True', 'False'].map((opt) {
+          return {
+            'text': opt,
+            'isCorrect': (opt == correctAnswer),
+            'userSelected': (opt == userAnswer),
+          };
+        }).toList();
+      }
+
+      return {
+        'text': q.text,
+        if (answers != null) 'answers': answers,
+      };
+    }).toList();
+
+    try {
+      final response = await http
+          .post(
+            url,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode({
+              'documentID': documentId,
+              'name': name,
+              'questions': questionsPayload,
+            }),
+          )
+          .timeout(const Duration(seconds: 30));
+
+      if (response.statusCode != 201) {
+        throw Exception('Failed: ${response.statusCode}');
+      }
+
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      print('   ✅ Saved!');
+      return data;
+    } catch (e) {
+      print('   ❌ Error: $e');
+      rethrow;
+    }
   }
-}
 
   /// Get all saved quizzes for the current user
   Future<List<Map<String, dynamic>>> getAllQuizzes(String authToken) async {
@@ -519,9 +515,8 @@ JSON array:''';
         const Duration(seconds: 30), // Increased timeout for slow connections
         onTimeout: () {
           throw Exception(
-            'Connection timeout. Is your backend server running?\n\n'
-            'Make sure your backend is running: cd backend && npm start'
-          );
+              'Connection timeout. Is your backend server running?\n\n'
+              'Make sure your backend is running: cd backend && npm start');
         },
       );
 
@@ -535,7 +530,8 @@ JSON array:''';
         throw Exception('Failed to fetch quizzes: ${response.statusCode}');
       }
     } catch (e) {
-      if (e.toString().contains('timeout') || e.toString().contains('Connection')) {
+      if (e.toString().contains('timeout') ||
+          e.toString().contains('Connection')) {
         rethrow;
       }
       throw Exception('Error fetching quizzes: $e');
@@ -543,7 +539,8 @@ JSON array:''';
   }
 
   /// Get details for a specific quiz including all questions
-  Future<Map<String, dynamic>> getQuizDetails(String quizId, String authToken) async {
+  Future<Map<String, dynamic>> getQuizDetails(
+      String quizId, String authToken) async {
     final baseUrl = backendBaseUrl;
     if (baseUrl.isEmpty) {
       throw Exception(
@@ -569,9 +566,8 @@ JSON array:''';
         const Duration(seconds: 30),
         onTimeout: () {
           throw Exception(
-            'Connection timeout. Is your backend server running?\n\n'
-            'Make sure your backend is running: cd backend && npm start'
-          );
+              'Connection timeout. Is your backend server running?\n\n'
+              'Make sure your backend is running: cd backend && npm start');
         },
       );
 
@@ -586,7 +582,8 @@ JSON array:''';
         throw Exception('Failed to fetch quiz details: ${response.statusCode}');
       }
     } catch (e) {
-      if (e.toString().contains('timeout') || e.toString().contains('Connection')) {
+      if (e.toString().contains('timeout') ||
+          e.toString().contains('Connection')) {
         rethrow;
       }
       throw Exception('Error fetching quiz details: $e');
@@ -620,9 +617,8 @@ JSON array:''';
         const Duration(seconds: 30),
         onTimeout: () {
           throw Exception(
-            'Connection timeout. Is your backend server running?\n\n'
-            'Make sure your backend is running: cd backend && npm start'
-          );
+              'Connection timeout. Is your backend server running?\n\n'
+              'Make sure your backend is running: cd backend && npm start');
         },
       );
 
@@ -636,7 +632,8 @@ JSON array:''';
         throw Exception('Failed to delete quiz: ${response.statusCode}');
       }
     } catch (e) {
-      if (e.toString().contains('timeout') || e.toString().contains('Connection')) {
+      if (e.toString().contains('timeout') ||
+          e.toString().contains('Connection')) {
         rethrow;
       }
       throw Exception('Error deleting quiz: $e');
@@ -647,23 +644,22 @@ JSON array:''';
     // Validate API key before making request
     final key = apiKey;
     if (key.isEmpty) {
-      throw Exception(
-        'API key is missing or empty!\n\n'
-        'Please check:\n'
-        '1. Create a .env file in the project root (same folder as pubspec.yaml)\n'
-        '2. Add this line: GEMINI_API_KEY=your-api-key-here\n'
-        '3. Make sure there are NO spaces around the = sign\n'
-        '4. Restart the app completely (hot reload won\'t work)\n'
-        '5. Run: flutter pub get\n\n'
-        'Get your API key from: https://aistudio.google.com/app/apikey'
-      );
+      throw Exception('API key is missing or empty!\n\n'
+          'Please check:\n'
+          '1. Create a .env file in the project root (same folder as pubspec.yaml)\n'
+          '2. Add this line: GEMINI_API_KEY=your-api-key-here\n'
+          '3. Make sure there are NO spaces around the = sign\n'
+          '4. Restart the app completely (hot reload won\'t work)\n'
+          '5. Run: flutter pub get\n\n'
+          'Get your API key from: https://aistudio.google.com/app/apikey');
     }
 
     // Use Google Gemini API endpoint
-    final model = _getEnv('GEMINI_MODEL').isEmpty ? 'gemini-2.5-flash' : _getEnv('GEMINI_MODEL');
+    final model = _getEnv('GEMINI_MODEL').isEmpty
+        ? 'gemini-2.5-flash'
+        : _getEnv('GEMINI_MODEL');
     final url = Uri.parse(
-      "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$key"
-    );
+        "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$key");
 
     // Build questions JSON for the prompt
     final questionsJson = questions.map((q) {
@@ -676,7 +672,8 @@ JSON array:''';
       };
     }).toList();
 
-    final prompt = '''You are a quiz grader. Evaluate the following quiz answers and provide a score.
+    final prompt =
+        '''You are a quiz grader. Evaluate the following quiz answers and provide a score.
 
 For each question:
 - MCQ and True/False: Check if the user's answer matches the correct answer (case-insensitive)
@@ -737,29 +734,26 @@ Return ONLY the JSON object, no markdown code blocks or explanations.''';
           final errorMessage = error['message'] as String? ?? 'Unknown error';
           final errorCode = error['code'] as int?;
           final errorStatus = error['status'] as String?;
-          
+
           if (errorStatus == 'RESOURCE_EXHAUSTED' || errorCode == 429) {
-            throw Exception(
-              'Gemini API Quota Exceeded\n\n'
-              'Your API key has exceeded its usage quota.\n\n'
-              'Troubleshooting steps:\n'
-              '1. Check your quota and usage:\n'
-              '   https://aistudio.google.com/app/apikey\n\n'
-              '2. Verify your API key is valid\n\n'
-              '3. Wait a few minutes and try again\n\n'
-              '4. Check if you need to enable billing\n\n'
-              'API Key used: ${key.substring(0, key.length > 12 ? 12 : key.length)}...\n'
-              'Get a new key at: https://aistudio.google.com/app/apikey'
-            );
+            throw Exception('Gemini API Quota Exceeded\n\n'
+                'Your API key has exceeded its usage quota.\n\n'
+                'Troubleshooting steps:\n'
+                '1. Check your quota and usage:\n'
+                '   https://aistudio.google.com/app/apikey\n\n'
+                '2. Verify your API key is valid\n\n'
+                '3. Wait a few minutes and try again\n\n'
+                '4. Check if you need to enable billing\n\n'
+                'API Key used: ${key.substring(0, key.length > 12 ? 12 : key.length)}...\n'
+                'Get a new key at: https://aistudio.google.com/app/apikey');
           } else if (errorStatus == 'UNAUTHENTICATED' || errorCode == 401) {
-            throw Exception(
-              'Invalid API Key\n\n'
-              'Your Gemini API key is invalid or has been revoked.\n\n'
-              'Get a new key from:\n'
-              'https://aistudio.google.com/app/apikey'
-            );
+            throw Exception('Invalid API Key\n\n'
+                'Your Gemini API key is invalid or has been revoked.\n\n'
+                'Get a new key from:\n'
+                'https://aistudio.google.com/app/apikey');
           } else {
-            throw Exception('Gemini API Error: $errorMessage\nStatus: $errorStatus');
+            throw Exception(
+                'Gemini API Error: $errorMessage\nStatus: $errorStatus');
           }
         }
       } catch (e) {
@@ -774,7 +768,8 @@ Return ONLY the JSON object, no markdown code blocks or explanations.''';
     final data = jsonDecode(response.body);
 
     // Gemini API returns content in candidates[0].content.parts[0].text
-    final content = data['candidates']?[0]?['content']?['parts']?[0]?['text'] as String?;
+    final content =
+        data['candidates']?[0]?['content']?['parts']?[0]?['text'] as String?;
 
     if (content == null || content.isEmpty) {
       throw Exception("No content in API response.");
@@ -795,7 +790,7 @@ Return ONLY the JSON object, no markdown code blocks or explanations.''';
 
     // Parse the result
     final result = jsonDecode(jsonContent) as Map<String, dynamic>;
-    
+
     return {
       'score': result['score'] as int? ?? 0,
       'totalQuestions': result['totalQuestions'] as int? ?? questions.length,
@@ -805,7 +800,8 @@ Return ONLY the JSON object, no markdown code blocks or explanations.''';
   }
 
   /// Get quizzes by document ID
-  Future<List<Map<String, dynamic>>> getQuizzesByDocument(String documentId, String authToken) async {
+  Future<List<Map<String, dynamic>>> getQuizzesByDocument(
+      String documentId, String authToken) async {
     final baseUrl = backendBaseUrl;
     if (baseUrl.isEmpty) {
       throw Exception(
@@ -821,7 +817,8 @@ Return ONLY the JSON object, no markdown code blocks or explanations.''';
     final url = Uri.parse('$baseUrl/quiz/document/$documentId');
 
     print('🌐 Making request to: $url');
-    print('🔑 Token (first 20 chars): ${authToken.substring(0, authToken.length > 20 ? 20 : authToken.length)}...');
+    print(
+        '🔑 Token (first 20 chars): ${authToken.substring(0, authToken.length > 20 ? 20 : authToken.length)}...');
 
     try {
       final response = await http.get(
@@ -834,9 +831,8 @@ Return ONLY the JSON object, no markdown code blocks or explanations.''';
         const Duration(seconds: 30),
         onTimeout: () {
           throw Exception(
-            'Connection timeout. Is your backend server running?\n\n'
-            'Make sure your backend is running: cd backend && npm start'
-          );
+              'Connection timeout. Is your backend server running?\n\n'
+              'Make sure your backend is running: cd backend && npm start');
         },
       );
 
@@ -855,16 +851,16 @@ Return ONLY the JSON object, no markdown code blocks or explanations.''';
       } else if (response.statusCode == 500) {
         throw Exception('Server error: ${response.body}');
       } else {
-        throw Exception('Failed to fetch quizzes: ${response.statusCode} - ${response.body}');
+        throw Exception(
+            'Failed to fetch quizzes: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
       print('❌ Error in getQuizzesByDocument API call: $e');
-      if (e.toString().contains('timeout') || e.toString().contains('Connection')) {
+      if (e.toString().contains('timeout') ||
+          e.toString().contains('Connection')) {
         rethrow;
       }
       throw Exception('Error fetching quizzes: $e');
     }
   }
-
- 
 }

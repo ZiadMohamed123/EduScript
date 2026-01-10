@@ -179,11 +179,12 @@ class DocumentProvider with ChangeNotifier {
 
   /// Upload to backend
   Future<void> _uploadToBackend() async {
-    if (documentFile == null || extractedRawText.isEmpty) {
-      errorMessage = 'Cannot upload: missing file or text';
-      notifyListeners();
-      return;
-    }
+    try {
+      if (documentFile == null || extractedRawText.isEmpty) {
+        errorMessage = 'Cannot upload: missing file or text';
+        notifyListeners();
+        return;
+      }
 
       final AuthService authService = AuthService();
       final token = await authService.getAuthToken();

@@ -1,8 +1,10 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'documents_list_page.dart';
 import '../services/document_service.dart';
 import '../services/openrouter_service.dart';
 import '../config/api_config.dart';
+import '../utils/app_theme.dart';
 
 /// Document Summary View Page
 /// Shows only the summary in PDF format - no chat functionality
@@ -183,24 +185,84 @@ class _DocumentSummaryViewState extends State<DocumentSummaryView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        title: Row(
           children: [
-            const Text('Document Summary'),
-            Text(
-              widget.document.title,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.normal,
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [AppColors.primary, AppColors.cyan, AppColors.accent],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withOpacity(0.35),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: const Icon(Icons.summarize, color: Colors.white, size: 24),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Document Summary',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 20,
+                    ),
+                  ),
+                  Text(
+                    widget.document.title,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.normal,
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? AppColors.textSecondaryDark
+                          : AppColors.textSecondary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ),
             ),
           ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Regenerate Summary',
-            onPressed: (_isLoading || _isGeneratingSummary) ? null : _regenerateSummary,
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            decoration: BoxDecoration(
+              gradient: (_isLoading || _isGeneratingSummary)
+                  ? null
+                  : const LinearGradient(
+                      colors: [AppColors.primary, AppColors.cyan],
+                    ),
+              color: (_isLoading || _isGeneratingSummary)
+                  ? AppColors.textSecondary
+                  : null,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: (_isLoading || _isGeneratingSummary)
+                  ? null
+                  : [
+                      BoxShadow(
+                        color: AppColors.primary.withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.refresh, color: Colors.white),
+              tooltip: 'Regenerate Summary',
+              onPressed: (_isLoading || _isGeneratingSummary) ? null : _regenerateSummary,
+            ),
           ),
         ],
       ),
@@ -312,8 +374,24 @@ class _DocumentSummaryViewState extends State<DocumentSummaryView> {
   }
 
   Widget _buildSummaryPDFView() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
     return Container(
-      color: Colors.white,
+      decoration: BoxDecoration(
+        gradient: isDark
+            ? null
+            : LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  AppColors.background,
+                  AppColors.blue50.withOpacity(0.3),
+                ],
+                stops: const [0.0, 0.3],
+              ),
+        color: isDark ? AppColors.backgroundDark : null,
+      ),
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Container(
@@ -321,26 +399,67 @@ class _DocumentSummaryViewState extends State<DocumentSummaryView> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Document Title
-              Text(
-                widget.document.title,
-                style: const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+              // Document Title with gradient
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [AppColors.primary, AppColors.cyan, AppColors.accent],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withOpacity(0.3),
+                      blurRadius: 15,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.document.title,
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.25),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.summarize, color: Colors.white, size: 16),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Document Summary',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.white.withOpacity(0.95),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                'Summary',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey[600],
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-              const Divider(height: 32),
-              const SizedBox(height: 16),
+              const SizedBox(height: 32),
 
               // Summary Content
               _buildFormattedSummary(_generatedSummary!),
@@ -351,82 +470,362 @@ class _DocumentSummaryViewState extends State<DocumentSummaryView> {
     );
   }
 
-  Widget _buildFormattedSummary(String summary) {
-    // Split summary into paragraphs and format
-    final paragraphs = summary.split('\n\n');
+  /// Cleans markdown artifacts from text to make it readable
+  String _cleanMarkdown(String text) {
+    // Remove markdown tables (| col1 | col2 | and |---|---|)
+    text = text.replaceAllMapped(RegExp(r'\|[^\n]*\|', multiLine: true), (match) {
+      final line = match.group(0) ?? '';
+      // If it's a table separator (|---| or |:---:|), remove it
+      if (RegExp(r'^\|[\s:|-]+\|$').hasMatch(line)) {
+        return '';
+      }
+      // Otherwise, remove the pipes and keep the content
+      return line.replaceAll('|', ' ').trim();
+    });
+    
+    // Remove markdown horizontal rules (___ or --- or ***)
+    text = text.replaceAll(RegExp(r'^_{3,}$', multiLine: true), '');
+    text = text.replaceAll(RegExp(r'^-{3,}$', multiLine: true), '');
+    text = text.replaceAll(RegExp(r'^\*{3,}$', multiLine: true), '');
+    
+    // Remove markdown code blocks first (```code```)
+    text = text.replaceAll(RegExp(r'```[\s\S]*?```', multiLine: true), '');
+    text = text.replaceAllMapped(RegExp(r'`([^`]+)`'), (match) => match.group(1) ?? '');
+    
+    // Remove markdown links [text](url) -> text
+    text = text.replaceAllMapped(RegExp(r'\[([^\]]+)\]\([^\)]+\)'), (match) {
+      return match.group(1) ?? '';
+    });
+    
+    // Remove markdown images ![alt](url) -> alt
+    text = text.replaceAllMapped(RegExp(r'!\[([^\]]*)\]\([^\)]+\)'), (match) {
+      return match.group(1) ?? '';
+    });
+    
+    // Remove markdown strikethrough (~~text~~)
+    text = text.replaceAllMapped(RegExp(r'~~(.*?)~~'), (match) {
+      return match.group(1) ?? '';
+    });
+    
+    // Remove markdown bold (**text** or __text__) - keep the text
+    text = text.replaceAllMapped(RegExp(r'\*\*(.*?)\*\*'), (match) {
+      return match.group(1) ?? '';
+    });
+    text = text.replaceAllMapped(RegExp(r'__(.*?)__'), (match) {
+      return match.group(1) ?? '';
+    });
+    
+    // Remove markdown italic (*text* or _text_) - keep the text
+    text = text.replaceAllMapped(RegExp(r'(?<!\*)\*(?!\*)([^*]+?)(?<!\*)\*(?!\*)'), (match) {
+      return match.group(1) ?? '';
+    });
+    text = text.replaceAllMapped(RegExp(r'(?<!_)_(?!_)([^_]+?)(?<!_)_(?!_)'), (match) {
+      return match.group(1) ?? '';
+    });
+    
+    // Remove markdown blockquotes (> text)
+    text = text.replaceAll(RegExp(r'^>\s+', multiLine: true), '');
+    
+    // Remove remaining standalone asterisks, underscores, pipes (unless they're part of words)
+    text = text.replaceAll(RegExp(r'(?<!\w)[*_|]{1,3}(?!\w)'), '');
+    
+    // Clean up extra whitespace
+    text = text.replaceAll(RegExp(r'\n{3,}'), '\n\n');
+    text = text.replaceAll(RegExp(r' {2,}'), ' ');
+    text = text.replaceAll(RegExp(r'\$\d+'), ''); // Remove any remaining $1, $2, etc.
+    
+    return text.trim();
+  }
 
+  Widget _buildFormattedSummary(String summary) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
+    // Try to parse as JSON first (new structured format)
+    try {
+      final jsonData = jsonDecode(summary);
+      if (jsonData is Map && jsonData.containsKey('sections')) {
+        return _buildStructuredSummary(jsonData['sections'] as List, isDark);
+      }
+    } catch (e) {
+      // Not JSON, fall back to old parsing method
+    }
+    
+    // Fallback: parse as plain text (for existing summaries)
+    return _buildLegacyFormattedSummary(summary, isDark);
+  }
+  
+  Widget _buildStructuredSummary(List<dynamic> sections, bool isDark) {
+    final List<Widget> widgets = [];
+    
+    for (var section in sections) {
+      if (section is! Map) continue;
+      
+      final type = section['type'] as String?;
+      if (type == null) continue;
+      
+      switch (type) {
+        case 'heading':
+          final text = section['text'] as String?;
+          if (text != null && text.trim().isNotEmpty) {
+            widgets.add(_buildHeading(text.trim(), isDark));
+          }
+          break;
+          
+        case 'paragraph':
+          final text = section['text'] as String?;
+          if (text != null && text.trim().isNotEmpty) {
+            widgets.add(_buildParagraph(text.trim(), isDark, widgets.isEmpty));
+          }
+          break;
+          
+        case 'list':
+          final items = section['items'] as List?;
+          if (items != null && items.isNotEmpty) {
+            final listItems = items
+                .where((item) => item is String && item.trim().isNotEmpty)
+                .map((item) => (item as String).trim())
+                .toList();
+            if (listItems.isNotEmpty) {
+              widgets.add(_buildList(listItems, isDark));
+            }
+          }
+          break;
+      }
+    }
+    
+    if (widgets.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.all(24),
+        child: Center(
+          child: Text(
+            'No content available',
+            style: TextStyle(
+              fontSize: 16,
+              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
+            ),
+          ),
+        ),
+      );
+    }
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: paragraphs.map((paragraph) {
-        if (paragraph.trim().isEmpty) return const SizedBox(height: 16);
-
-        // Check if it's a heading (starts with # or is short and bold-looking)
-        final isHeading = paragraph.startsWith('#') ||
-            (paragraph.length < 100 &&
-                !paragraph.contains('.') &&
-                paragraph.split(' ').length < 10);
-
-        if (isHeading) {
-          return Padding(
-            padding: const EdgeInsets.only(top: 24, bottom: 12),
+      children: widgets,
+    );
+  }
+  
+  Widget _buildLegacyFormattedSummary(String summary, bool isDark) {
+    // Clean the summary from markdown artifacts
+    final cleanedSummary = _cleanMarkdown(summary);
+    
+    // Split into lines to process
+    final lines = cleanedSummary.split('\n');
+    final List<Widget> widgets = [];
+    String currentParagraph = '';
+    bool inList = false;
+    final List<String> listItems = [];
+    
+    for (int i = 0; i < lines.length; i++) {
+      final line = lines[i].trim();
+      
+      if (line.isEmpty) {
+        // Flush current paragraph or list
+        if (inList && listItems.isNotEmpty) {
+          widgets.add(_buildList(listItems, isDark));
+          listItems.clear();
+          inList = false;
+        } else if (currentParagraph.isNotEmpty) {
+          widgets.add(_buildParagraph(currentParagraph, isDark, false));
+          currentParagraph = '';
+        }
+        continue;
+      }
+      
+      // Check if it's a list item
+      if (RegExp(r'^[-*•]\s+').hasMatch(line) || RegExp(r'^\d+\.\s+').hasMatch(line)) {
+        if (!inList && currentParagraph.isNotEmpty) {
+          widgets.add(_buildParagraph(currentParagraph, isDark, false));
+          currentParagraph = '';
+        }
+        inList = true;
+        final cleanedItem = line.replaceAll(RegExp(r'^[-*•]\s+'), '')
+            .replaceAll(RegExp(r'^\d+\.\s+'), '').trim();
+        if (cleanedItem.isNotEmpty) {
+          listItems.add(cleanedItem);
+        }
+        continue;
+      }
+      
+      // Regular text
+      if (inList) {
+        widgets.add(_buildList(listItems, isDark));
+        listItems.clear();
+        inList = false;
+      }
+      
+      if (currentParagraph.isNotEmpty) {
+        currentParagraph += ' ';
+      }
+      currentParagraph += line;
+    }
+    
+    // Flush remaining content
+    if (inList && listItems.isNotEmpty) {
+      widgets.add(_buildList(listItems, isDark));
+    } else if (currentParagraph.isNotEmpty) {
+      widgets.add(_buildParagraph(currentParagraph, isDark, false));
+    }
+    
+    if (widgets.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.all(24),
+        child: Center(
+          child: Text(
+            'No content available',
+            style: TextStyle(
+              fontSize: 16,
+              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
+            ),
+          ),
+        ),
+      );
+    }
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: widgets,
+    );
+  }
+  
+  Widget _buildHeading(String text, bool isDark) {
+    return Container(
+      margin: const EdgeInsets.only(top: 32, bottom: 20),
+      child: Row(
+        children: [
+          Container(
+            width: 5,
+            height: 28,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [AppColors.primary, AppColors.cyan],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+              borderRadius: BorderRadius.circular(3),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withOpacity(0.3),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
             child: Text(
-              paragraph.replaceAll('#', '').trim(),
-              style: const TextStyle(
-                fontSize: 20,
+              text,
+              style: TextStyle(
+                fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: Colors.black87,
+                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary,
+                letterSpacing: 0.3,
+                height: 1.3,
               ),
             ),
-          );
-        }
-
-        // Check if it's a bullet point
-        if (paragraph.trim().startsWith('-') ||
-            paragraph.trim().startsWith('•')) {
-          final items = paragraph.split('\n');
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildList(List<String> items, bool isDark) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 24),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark 
+            ? AppColors.surfaceDarkVariant.withOpacity(0.4)
+            : AppColors.blue50.withOpacity(0.4),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: isDark
+              ? AppColors.primaryDarkVariant.withOpacity(0.15)
+              : AppColors.primary.withOpacity(0.12),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: isDark
+                ? Colors.black.withOpacity(0.2)
+                : AppColors.primary.withOpacity(0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: items.map((item) {
           return Padding(
             padding: const EdgeInsets.only(bottom: 12),
-            child: Column(
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: items.map((item) {
-                if (item.trim().isEmpty) return const SizedBox.shrink();
-                return Padding(
-                  padding: const EdgeInsets.only(left: 20, bottom: 8),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('• ', style: TextStyle(fontSize: 18)),
-                      Expanded(
-                        child: Text(
-                          item.replaceAll(RegExp(r'^[-•]\s*'), '').trim(),
-                          style: const TextStyle(
-                            fontSize: 14,
-                            height: 1.6,
-                            color: Colors.black87,
-                          ),
-                        ),
+              children: [
+                Container(
+                  margin: const EdgeInsets.only(top: 8, right: 14),
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [AppColors.primary, AppColors.cyan],
+                    ),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withOpacity(0.3),
+                        blurRadius: 4,
+                        offset: const Offset(0, 1),
                       ),
                     ],
                   ),
-                );
-              }).toList(),
+                ),
+                Expanded(
+                  child: Text(
+                    item,
+                    style: TextStyle(
+                      fontSize: 16,
+                      height: 1.75,
+                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary,
+                      letterSpacing: 0.1,
+                    ),
+                  ),
+                ),
+              ],
             ),
           );
-        }
-
-        // Regular paragraph
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 16),
-          child: Text(
-            paragraph.trim(),
-            style: const TextStyle(
-              fontSize: 14,
-              height: 1.8,
-              color: Colors.black87,
-            ),
-          ),
-        );
-      }).toList(),
+        }).toList(),
+      ),
+    );
+  }
+  
+  Widget _buildParagraph(String text, bool isDark, bool isFirst) {
+    return Container(
+      margin: EdgeInsets.only(
+        top: isFirst ? 0 : 0,
+        bottom: 24,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 17,
+          height: 1.85,
+          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary,
+          letterSpacing: 0.15,
+        ),
+      ),
     );
   }
 }
