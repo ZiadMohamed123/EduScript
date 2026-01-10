@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Allow access to app cache directory (where we save PDFs) -->
+    <cache-path name="pdfs" path="pdfs/" />
+    
+    <!-- Allow access to entire cache directory -->
+    <cache-path name="cache" path="/" />
+</paths>

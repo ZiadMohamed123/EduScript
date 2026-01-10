@@ -3,6 +3,12 @@ import '../utils/app_theme.dart';
 import '../services/document_service.dart';
 import 'QuizCustomizationPage.dart';
 import 'SavedQuizzesListPage.dart';
+import '../providers/document_provider.dart';
+import 'package:flutter/services.dart';
+import 'dart:io';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:http/http.dart' as http;
 
 class Document {
   final String id;
@@ -129,6 +135,80 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
               borderRadius: BorderRadius.circular(20),
             ),
             clipBehavior: Clip.antiAlias,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _viewPdf(Document document) async {
+    try {
+      print('🔍 Looking for PDF with document ID: ${document.id}');
+
+      // Get the local PDF path using the document ID
+      final localPdfPath = await DocumentProvider.getLocalPdfPath(document.id);
+
+      print('📁 Local PDF path: $localPdfPath');
+
+      if (localPdfPath == null || localPdfPath.isEmpty) {
+        print('❌ PDF path is null or empty');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('PDF not available. Please re-scan the document.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      final file = File(localPdfPath);
+      final exists = await file.exists();
+      print('📄 File exists: $exists');
+
+      if (exists) {
+        print('✅ Opening PDF via platform channel...');
+
+        // Use platform channel to open file with FileProvider
+        try {
+          await const MethodChannel('com.example.edu_script/files')
+              .invokeMethod('openFile', {
+            'filePath': localPdfPath,
+            'mimeType': 'application/pdf',
+          });
+        } catch (e) {
+          print('Platform channel error: $e, trying fallback...');
+
+          // Fallback: Try to use launchUrl with proper encoding
+          final Uri uri = Uri.parse('file://$localPdfPath');
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(
+              uri,
+              mode: LaunchMode.externalApplication,
+            );
+          } else {
+            throw 'Could not launch $uri';
+          }
+        }
+      } else {
+        print('❌ File does not exist at: $localPdfPath');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('PDF file not found on device'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('❌ Error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to open PDF: ${e.toString()}'),
+            backgroundColor: Colors.red,
           ),
         );
       }
@@ -395,6 +475,9 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
                         fillColor: Colors.transparent,
                       ),
                     ),
+                    filled: true,
+                    fillColor: scheme.surfaceContainerHighest
+                        .withOpacity(isDark ? 0.3 : 0.7),
                   ),
                 ),
 
@@ -539,7 +622,6 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
   }
 
   void _showDocumentOptions(BuildContext context, Document document) {
-    // Capture parent context and ScaffoldMessenger before showing modal
     final parentContext = context;
     final scaffoldMessenger = ScaffoldMessenger.of(context);
 
@@ -568,6 +650,16 @@ class _DocumentsListPageState extends State<DocumentsListPage> {
               ),
             ),
             const SizedBox(height: 20),
+            _buildActionTile(
+            leading: const Icon(Icons.file_open),
+            title: const Text('View PDF'),
+            subtitle: const Text('Open document'),
+            onTap: () {
+              Navigator.pop(modalContext);
+              _viewPdf(document);
+            },
+          ),
+          const Divider(height: 8),
             _buildActionTile(
               modalContext,
               icon: Icons.summarize,
