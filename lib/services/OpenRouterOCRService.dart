@@ -7,15 +7,14 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class OpenRouterOcrService {
   static String get apiKey {
-    final key = dotenv.env['Api_Key_ex'];
+    final key = dotenv.env['OPENROUTER_API_KEY'];
     if (key == null || key.isEmpty) {
-      throw Exception('Api_Key_ex not found in .env');
+      throw Exception('OPENROUTER_API_KEY not found in .env');
     }
     return key;
   }
 
-  static const String baseUrl =
-      'https://openrouter.ai/api/v1/chat/completions';
+  static const String baseUrl = 'https://openrouter.ai/api/v1/chat/completions';
 
   static Future<String> extractTextFromImage(
     File imageFile, {
@@ -62,8 +61,7 @@ class OpenRouterOcrService {
                       {
                         'type': 'image_url',
                         'image_url': {
-                          'url':
-                              'data:image/jpeg;base64,$base64Image'
+                          'url': 'data:image/jpeg;base64,$base64Image'
                         }
                       }
                     ]
@@ -75,22 +73,19 @@ class OpenRouterOcrService {
             )
             .timeout(
               const Duration(seconds: 60),
-              onTimeout: () =>
-                  throw TimeoutException('Model timeout'),
+              onTimeout: () => throw TimeoutException('Model timeout'),
             );
 
         overallStopwatch.stop();
 
         if (response.statusCode == 200) {
           final data = jsonDecode(response.body);
-          final extractedText =
-              data['choices'][0]['message']['content'];
+          final extractedText = data['choices'][0]['message']['content'];
           return extractedText.trim();
         } else if (response.statusCode == 429) {
           lastError = Exception('Rate limited');
           if (attempt < maxRetries) {
-            await Future.delayed(
-                Duration(seconds: attempt * 5));
+            await Future.delayed(Duration(seconds: attempt * 5));
             continue;
           }
         } else if (response.statusCode == 401) {
@@ -99,8 +94,7 @@ class OpenRouterOcrService {
           throw Exception(
               'No credits. Add credits at https://openrouter.ai/credits');
         } else {
-          lastError =
-              Exception('API Error ${response.statusCode}');
+          lastError = Exception('API Error ${response.statusCode}');
           if (attempt < maxRetries) {
             await Future.delayed(const Duration(seconds: 3));
             continue;
@@ -122,8 +116,7 @@ class OpenRouterOcrService {
       }
     }
 
-    throw lastError ??
-        Exception('OCR failed after $maxRetries attempts');
+    throw lastError ?? Exception('OCR failed after $maxRetries attempts');
   }
 
   /// One-shot structured extraction
@@ -166,8 +159,7 @@ Return ONLY this JSON:
                     {
                       'type': 'image_url',
                       'image_url': {
-                        'url':
-                            'data:image/jpeg;base64,$base64Image'
+                        'url': 'data:image/jpeg;base64,$base64Image'
                       }
                     }
                   ]
@@ -179,8 +171,7 @@ Return ONLY this JSON:
           )
           .timeout(
             const Duration(seconds: 120),
-            onTimeout: () =>
-                throw TimeoutException('Timed out after 120s'),
+            onTimeout: () => throw TimeoutException('Timed out after 120s'),
           );
 
       overallStopwatch.stop();
@@ -188,9 +179,7 @@ Return ONLY this JSON:
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         String content =
-            data['choices'][0]['message']['content']
-                .toString()
-                .trim();
+            data['choices'][0]['message']['content'].toString().trim();
 
         if (content.startsWith('```')) {
           content = content
@@ -205,8 +194,7 @@ Return ONLY this JSON:
       } else if (response.statusCode == 429) {
         throw Exception('Rate limited');
       } else {
-        throw Exception(
-            'API Error ${response.statusCode}');
+        throw Exception('API Error ${response.statusCode}');
       }
     } catch (_) {
       overallStopwatch.stop();
