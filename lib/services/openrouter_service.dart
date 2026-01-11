@@ -16,7 +16,7 @@ class OpenRouterService {
 
   OpenRouterService({
     required this.apiKey,
-    this.model = 'openai/gpt-oss-120b:free', // Default model
+    this.model = 'google/gemini-3-flash-preview-20251217', // Default model
   });
 
   /// Send a chat message and get AI response
@@ -183,16 +183,27 @@ Return the summary as a JSON object following the exact structure specified. Use
 ${context != null ? 'Context: $context' : 'Generate a general summary structure that would be helpful for studying this topic.'}
 
 Return the summary as a JSON object following the exact structure: {"sections": [{"type": "heading|paragraph|list", "text": "..." or "items": [...]}]}. Return ONLY the JSON object, nothing else.''';
+    final stopwatch = Stopwatch()..start();
 
-    return await chat(
-      messages: [
-        {'role': 'user', 'content': userPrompt},
-      ],
-      systemPrompt: systemPrompt,
-      temperature:
-          0.3, // Lower temperature for more focused, consistent summaries
-      maxTokens: 4000, // Increased for longer summaries
-    );
+    try {
+      final result = await chat(
+        messages: [
+          {'role': 'user', 'content': userPrompt},
+        ],
+        systemPrompt: systemPrompt,
+        temperature: 0.3,
+        maxTokens: 4000,
+      );
+
+      stopwatch.stop();
+      print('Model "$model" finished in ${stopwatch.elapsedMilliseconds} ms');
+
+      return result;
+    } catch (e) {
+      stopwatch.stop();
+      print('Model "$model" failed after ${stopwatch.elapsedMilliseconds} ms');
+      rethrow;
+    }
   }
 
   /// General chat for tutoring
