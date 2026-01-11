@@ -124,6 +124,7 @@ class DocumentProvider with ChangeNotifier {
     } catch (e, st) {
       errorMessage = 'Extraction failed: $e';
       document = null;
+      notifyListeners();
     } finally {
       isLoading = false;
       currentPage = 0;
@@ -169,16 +170,21 @@ class DocumentProvider with ChangeNotifier {
             fullText.writeln(pageText);
             fullText.writeln();
           }
-        } catch (_) {
-          fullText.writeln('--- Page ${i + 1} (failed) ---');
-          fullText.writeln();
+        } catch (e) {
+          throw Exception('OCR extraction failed on page ${i + 1}: $e');
         }
       }
 
       extractedRawText = fullText.toString().trim();
+
+      // Check if extraction was successful
+      if (extractedRawText.isEmpty) {
+        throw Exception('No text extracted from PDF');
+      }
+
       await _uploadToBackend(documentName);
     } catch (e) {
-      errorMessage = 'Structured PDF extraction failed: $e';
+      errorMessage = 'Extraction failed: $e';
       document = null;
       notifyListeners();
     } finally {
